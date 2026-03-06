@@ -1,0 +1,366 @@
+---
+title: 'Invoicing & Billing'
+description: 'Generate invoices from orders and manage billing records'
+icon: 'file-invoice-dollar'
+---
+
+## Overview
+
+Bar Galileo's invoicing system converts completed orders into formal invoices with automatic numbering, total calculation, and comprehensive record-keeping.
+
+<CardGroup cols={2}>
+  <Card title="Automatic Numbering" icon="hashtag">
+    Sequential invoice numbers generated automatically
+  </Card>
+  <Card title="Order Integration" icon="link">
+    One-to-one relationship with orders ensures accuracy
+  </Card>
+  <Card title="Price Capture" icon="lock">
+    Invoice totals locked at time of creation
+  </Card>
+  <Card title="Search & Filter" icon="filter">
+    Find invoices by number, date, or table
+  </Card>
+</CardGroup>
+
+## Invoice Structure
+
+Each invoice contains:
+
+- **numero**: Unique invoice number (auto-generated, 8 digits zero-padded)
+- **pedido**: One-to-one link to the source order
+- **fecha**: Invoice date and time
+- **total**: Total amount (calculated from order items)
+
+<Note>
+  Each order can only have one invoice, and each invoice is linked to exactly one order. This prevents duplicate billing.
+</Note>
+
+## Creating Invoices
+
+### Standard Invoice Generation
+
+<Steps>
+  <Step title="Complete the Order">
+    Ensure all order items are correct and the customer is ready to pay.
+  </Step>
+  
+  <Step title="Generate Invoice">
+    Create an invoice from the order. The system automatically:
+    - Assigns the next sequential invoice number
+    - Captures the current date and time
+    - Calculates the total from all order items
+    - Links the invoice to the order
+  </Step>
+  
+  <Step title="Update Order Status">
+    The related order status changes to "Facturado" (Invoiced), preventing further modifications.
+  </Step>
+  
+  <Step title="Process Payment">
+    Present the invoice to the customer and process payment through your preferred method.
+  </Step>
+</Steps>
+
+### Automatic Invoice Numbering
+
+Invoice numbers are generated automatically:
+
+- **Sequential**: Each new invoice increments from the last
+- **8 Digits**: Numbers are zero-padded (e.g., 00000001, 00000002)
+- **Unique**: System ensures no duplicate numbers
+- **Automatic**: No manual number entry required
+
+<Accordion title="How invoice numbering works">
+  When creating an invoice:
+  
+  1. System queries for the highest existing invoice number
+  2. Increments the number by 1
+  3. Zero-pads to 8 digits (e.g., 00000042)
+  4. Assigns this number to the new invoice
+  5. If no invoices exist, starts at 00000001
+  
+  This ensures:
+  - No gaps in numbering
+  - No duplicate numbers
+  - Compliance with accounting standards
+  - Easy invoice tracking
+</Accordion>
+
+## Invoice Totals
+
+### Automatic Calculation
+
+Invoice totals are calculated from the order:
+
+```
+Invoice Total = Sum of all order items
+Each item subtotal = quantity × precio_unitario
+Invoice total = Sum of all subtotals
+```
+
+<Steps>
+  <Step title="Order Items Calculated">
+    Each item in the order has a subtotal (quantity × unit price).
+  </Step>
+  
+  <Step title="Order Total Computed">
+    The order calculates its total by summing all item subtotals.
+  </Step>
+  
+  <Step title="Invoice Captures Total">
+    When the invoice is created, it captures the order total at that moment.
+  </Step>
+  
+  <Step title="Total is Locked">
+    Once captured, the invoice total never changes, even if the order is modified.
+  </Step>
+</Steps>
+
+<Warning>
+  If the invoice total is not explicitly set during creation, the system automatically uses the order's current total. This happens during the save operation.
+</Warning>
+
+## Managing Invoices
+
+### Viewing Invoices
+
+The invoicing module provides several ways to find and view invoices:
+
+<AccordionGroup>
+  <Accordion title="Search by Invoice Number">
+    Search for specific invoices using their unique invoice number. This is the fastest way to locate a particular transaction.
+  </Accordion>
+  
+  <Accordion title="Filter by Date Range">
+    View invoices created during a specific period:
+    - Today's invoices
+    - This week's invoices
+    - This month's invoices
+    - Custom date range
+    
+    Useful for:
+    - Daily revenue reports
+    - Period-end reconciliation
+    - Audit trails
+    - Performance analysis
+  </Accordion>
+  
+  <Accordion title="Filter by Table">
+    Find all invoices for a specific table, helpful for:
+    - Investigating customer complaints
+    - Analyzing table performance
+    - Server performance tracking
+  </Accordion>
+  
+  <Accordion title="View All Invoices">
+    Browse the complete invoice history ordered by date (newest first).
+  </Accordion>
+</AccordionGroup>
+
+### Invoice Details
+
+When viewing an invoice, you can see:
+
+- **Invoice number**: Unique identifier
+- **Date and time**: When invoice was created
+- **Total amount**: Final bill amount
+- **Associated table**: Which table the order was for
+- **Order details**: All items that were ordered
+- **Staff members**: Who handled the order
+
+## Safe Invoice Handling
+
+### Data Integrity
+
+Bar Galileo includes advanced protection against data corruption:
+
+- **Decimal validation**: Ensures money amounts are valid
+- **Safe retrieval**: Uses direct SQL queries to bypass corrupted data
+- **Error handling**: Gracefully handles issues without crashing
+- **Corruption detection**: Can identify and report problematic invoices
+
+<Note>
+  The system includes a `FacturaSegura` wrapper class that safely handles invoice data even if database values become corrupted.
+</Note>
+
+### Invoice Statistics
+
+The system automatically tracks:
+
+- **Total invoices**: Count of all invoices ever created
+- **Total revenue**: Sum of all invoice amounts
+- **Today's invoices**: Count of invoices created today
+- **Today's revenue**: Total income from today's invoices
+
+<Accordion title="How statistics are calculated">
+  Statistics use optimized SQL queries:
+  
+  ```sql
+  Total invoices: COUNT(*) FROM tables_factura
+  Total revenue: SUM(total) FROM tables_factura
+  Today's invoices: COUNT(*) WHERE DATE(fecha) = TODAY
+  Today's revenue: SUM(total) WHERE DATE(fecha) = TODAY
+  ```
+  
+  These queries are fast even with thousands of invoices.
+</Accordion>
+
+## Invoice Workflows
+
+### Standard Dine-In Workflow
+
+<Steps>
+  <Step title="Customer Requests Bill">
+    When the customer is ready to leave, they request the bill.
+  </Step>
+  
+  <Step title="Review Order">
+    Verify all items on the order are correct. Make any necessary adjustments while order status is still "En Proceso".
+  </Step>
+  
+  <Step title="Generate Invoice">
+    Create the invoice from the order. System assigns invoice number and calculates total.
+  </Step>
+  
+  <Step title="Present Invoice">
+    Show the invoice to the customer (printed or on screen).
+  </Step>
+  
+  <Step title="Process Payment">
+    Accept payment via cash, card, or other methods.
+  </Step>
+  
+  <Step title="Complete Transaction">
+    Order marked as "Facturado", table returns to "Disponible" status.
+  </Step>
+</Steps>
+
+### Quick Service Workflow
+
+<Steps>
+  <Step title="Take Order">
+    Create order for quick service or takeout.
+  </Step>
+  
+  <Step title="Immediate Invoice">
+    Generate invoice immediately after order creation.
+  </Step>
+  
+  <Step title="Payment First">
+    Customer pays before food is prepared.
+  </Step>
+  
+  <Step title="Prepare Order">
+    Kitchen prepares the order after payment is confirmed.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Invoice shows incorrect total">
+    If an invoice total seems wrong:
+    
+    1. Check the source order and all its items
+    2. Verify quantities and unit prices
+    3. Remember: invoice captures total at creation time
+    4. If order was modified after invoicing, invoice total won't change
+    5. Create a new order/invoice if correction is needed
+  </Accordion>
+  
+  <Accordion title="Cannot create invoice for order">
+    If invoice creation fails:
+    
+    - Verify order is in "En Proceso" status (not already invoiced)
+    - Check that order has at least one item
+    - Ensure order items have valid prices
+    - Confirm no existing invoice for this order
+  </Accordion>
+  
+  <Accordion title="Invoice number sequence looks wrong">
+    Invoice numbers are sequential based on database records:
+    
+    - Numbers increment regardless of deletion
+    - Gaps may appear if invoices were deleted
+    - This is normal and maintains audit trail
+    - Never manually edit invoice numbers
+  </Accordion>
+  
+  <Accordion title="Corrupted invoice data">
+    If you encounter invoice data issues:
+    
+    1. The system can detect corrupted invoices
+    2. Use the safe retrieval methods to access data
+    3. Review the corruption detection report
+    4. Contact technical support for data repair
+    5. System continues working with unaffected invoices
+  </Accordion>
+</AccordionGroup>
+
+## Financial Reports
+
+### Daily Sales Report
+
+Use invoice data to generate daily reports:
+
+- Total number of invoices today
+- Total revenue today
+- Average invoice amount
+- Peak service times
+- Table utilization
+
+### Period Reports
+
+Analyze performance over time:
+
+- Weekly revenue trends
+- Monthly comparisons
+- Seasonal patterns
+- Growth metrics
+
+### Audit Trail
+
+Invoices provide complete financial audit trail:
+
+- Every sale has an invoice
+- Every invoice links to an order
+- Every order shows items and prices
+- All timestamps are automatic and accurate
+- Historical data never changes
+
+<Note>
+  The one-to-one relationship between orders and invoices ensures that every sale is properly documented and no order is invoiced twice.
+</Note>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Review Before Invoicing">
+    Always verify the order is complete and correct before generating the invoice. Once invoiced, the order cannot be modified.
+  </Accordion>
+  
+  <Accordion title="Daily Reconciliation">
+    Reconcile daily invoices with actual payments:
+    - Count invoice totals
+    - Match with cash register
+    - Investigate discrepancies
+    - Document exceptions
+  </Accordion>
+  
+  <Accordion title="Backup Invoice Data">
+    Invoices are legal financial documents:
+    - Maintain regular database backups
+    - Store backups securely
+    - Keep backups for required retention period
+    - Test backup restoration periodically
+  </Accordion>
+  
+  <Accordion title="Invoice Retention">
+    Maintain invoices according to:
+    - Local tax regulations
+    - Accounting standards
+    - Business requirements
+    - Typically 5-7 years minimum
+  </Accordion>
+</AccordionGroup>

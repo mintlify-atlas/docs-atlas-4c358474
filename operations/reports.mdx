@@ -1,0 +1,423 @@
+---
+title: Reports & Analytics
+description: Generate comprehensive PDF, Excel, and CSV reports for all operational and financial data
+---
+
+The reports module provides powerful data export capabilities across all system modules, with professional formatting and detailed breakdowns. Generate sales reports, inventory snapshots, expense analysis, and more.
+
+## Report Types
+
+Bar Galileo supports seven report types:
+
+<CardGroup cols={2}>
+  <Card title="Sales Reports" icon="dollar-sign">
+    Total sales, invoice counts, averages, and detailed transaction lists
+  </Card>
+  <Card title="Expense Reports" icon="receipt">
+    Total expenses by category, averages, and itemized expense details
+  </Card>
+  <Card title="Payroll Reports" icon="users">
+    Active employees, salary totals, contract distribution, and employee details
+  </Card>
+  <Card title="Inventory Reports" icon="boxes-stacked">
+    Inventory value, low stock alerts, and complete product listings
+  </Card>
+  <Card title="Product Reports" icon="tags">
+    Product catalog by category, pricing, margins, and stock levels
+  </Card>
+  <Card title="Table & Order Reports" icon="utensils">
+    Order history, billing statistics, and detailed order breakdowns
+  </Card>
+  <Card title="General Reports" icon="chart-line">
+    Comprehensive financial overview: sales vs. expenses, profit margins, and daily summaries
+  </Card>
+</CardGroup>
+
+## Creating Reports
+
+<Steps>
+  <Step title="Navigate to Reports">
+    Go to **Reports** > **Create Report** in the main menu
+  </Step>
+  <Step title="Fill Report Form">
+    - **Name**: Descriptive title (e.g., "October 2025 Sales")
+    - **Type**: Select from 7 report types
+    - **Period**: Daily, Weekly, Monthly, Quarterly, Annual, or Custom
+    - **Date Range**: Start and end dates
+    - **Format**: PDF, Excel, or CSV
+    - **Description**: Optional notes
+  </Step>
+  <Step title="Save Report">
+    Click **Save** to create the report configuration
+  </Step>
+  <Step title="Generate Data">
+    On the report detail page, click **Generate Report** to process data
+  </Step>
+  <Step title="Export">
+    Choose your format and download:
+    - **PDF**: Professional document for printing/sharing
+    - **Excel**: Formatted spreadsheet for analysis
+    - **CSV**: Plain text for import to other systems
+  </Step>
+</Steps>
+
+<Note>
+  Reports use a caching system. Data is stored as JSON after generation, so you can export multiple formats without re-querying the database.
+</Note>
+
+## Report Model
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nombre` | CharField(200) | Report name |
+| `tipo` | CharField(20) | Report type (choices below) |
+| `periodo` | CharField(20) | Period type (diario, semanal, etc.) |
+| `formato` | CharField(10) | Export format (pdf, excel, csv) |
+| `descripcion` | TextField | Optional description |
+| `creado_por` | ForeignKey | User who created the report |
+| `fecha_creacion` | DateTimeField | Creation timestamp |
+| `fecha_inicio` | DateField | Report start date |
+| `fecha_fin` | DateField | Report end date |
+| `archivo` | FileField | Exported file (stored in `reportes/`) |
+| `generado` | BooleanField | Whether data has been generated |
+| `datos_json` | TextField | Cached report data as JSON |
+| `ultima_generacion` | DateTimeField | Last generation timestamp |
+
+### Report Type Choices
+
+- `ventas`: Sales reports
+- `inventario`: Inventory reports
+- `gastos`: Expense reports
+- `nominas`: Payroll reports
+- `productos`: Product reports
+- `mesas`: Table and order reports
+- `general`: General financial reports
+
+### Period Choices
+
+- `diario`: Daily
+- `semanal`: Weekly
+- `mensual`: Monthly
+- `trimestral`: Quarterly
+- `anual`: Annual
+- `personalizado`: Custom date range
+
+## Export Formats
+
+### PDF Reports
+
+Professional documents with:
+- **Header**: Bar Galileo branding with report type
+- **Info Section**: Report name, period, duration, creator, generation date
+- **Summary Tables**: Key metrics with color-coded headers
+- **Detailed Tables**: Complete data listings with borders and formatting
+- **Totals Section**: Consolidated final figures
+- **Colors**: Corporate gold (#A68932) and blue (#366092) theme
+
+<Info>
+  PDF reports use ReportLab with custom styling. Generated files are printer-ready and suitable for management presentations.
+</Info>
+
+### Excel Reports
+
+Formatted spreadsheets with:
+- **Title Row**: Merged cells with corporate gold background
+- **Info Section**: Styled report metadata
+- **Summary Section**: Color-coded metrics
+- **Detailed Data**: Bordered tables with header styling
+- **Totals Section**: Bold summary figures
+- **Auto-sized Columns**: Optimal width for readability
+
+<Info>
+  Excel files use OpenPyXL and include cell formatting, borders, and colors. Perfect for further analysis and filtering.
+</Info>
+
+### CSV Reports
+
+Plain-text exports with:
+- **UTF-8 BOM**: Ensures proper character encoding
+- **Clear Structure**: Section headers (===) for easy parsing
+- **Info Header**: Report metadata
+- **Summary**: Key metrics in key-value format
+- **Details**: Tabular data with column headers
+- **Totals**: Final summary figures
+
+<Note>
+  CSV files are compatible with Excel, Google Sheets, and any data processing tool. Use for importing to external systems.
+</Note>
+
+## Report Contents by Type
+
+### Sales Reports (ventas)
+
+**Summary**:
+- Total sales amount
+- Number of invoices
+- Average invoice value
+
+**Details**:
+- Invoice number
+- Date
+- Table number
+- Item count
+- Total amount
+
+### Expense Reports (gastos)
+
+**Summary**:
+- Total expenses
+- Top 5 categories with amounts
+- Average expense
+
+**Details**:
+- Date
+- Category
+- Description
+- Recorded by (user)
+- Amount
+
+### Payroll Reports (nominas)
+
+**Summary**:
+- Total active employees
+- Total salaries
+- Distribution by contract type
+
+**Details**:
+- Employee name
+- Position
+- Contract type
+- Base salary
+- Years of service
+
+### Inventory Reports (inventario)
+
+**Summary**:
+- Total inventory value
+- Low stock items count
+- Out of stock items count
+
+**Details**:
+- Product name
+- Category
+- Supplier
+- Stock quantity
+- Unit price
+- Purchase price
+- Total value
+
+### Product Reports (productos)
+
+**Summary**:
+- Total active products
+- Products by category
+- Average profit margin
+
+**Details**:
+- Product name
+- Category
+- Brand
+- Stock
+- Unit price
+- Purchase price
+- Profit margin %
+
+### Table & Order Reports (mesas)
+
+**Summary**:
+- Total orders
+- Invoiced orders count
+- Cancelled orders count
+- Total billed amount
+
+**Details**:
+- Order number
+- Table
+- Date
+- Status
+- Item count
+- Total amount
+
+### General Reports (general)
+
+**Summary**:
+- Total sales
+- Total expenses
+- Gross profit
+- Profit margin %
+- Active products
+- Active employees
+
+**Details (Daily Breakdown)**:
+- Date
+- Daily sales
+- Daily expenses
+- Daily profit
+
+## Data Caching System
+
+### How It Works
+
+1. Click **Generate Report** to fetch and process data
+2. Data is serialized to JSON and stored in `datos_json` field
+3. `ultima_generacion` timestamp is updated
+4. `generado` flag is set to `True`
+5. Export formats read from cached JSON for fast rendering
+
+### Regenerating Reports
+
+<Steps>
+  <Step title="Navigate to Report">
+    Open an existing report from the reports list
+  </Step>
+  <Step title="Check Last Generation">
+    Review the `ultima_generacion` timestamp
+  </Step>
+  <Step title="Click Generate">
+    Click **Generate Report** again to refresh data
+  </Step>
+  <Step title="Re-export">
+    Download in any format with updated information
+  </Step>
+</Steps>
+
+<Warning>
+  If you add new sales, expenses, or inventory items, remember to regenerate reports to include the latest data.
+</Warning>
+
+## Report Properties
+
+### `duracion_dias`
+
+Calculates the period length:
+
+```python
+@property
+def duracion_dias(self):
+    if self.fecha_inicio and self.fecha_fin:
+        return (self.fecha_fin - self.fecha_inicio).days + 1
+    return 0
+```
+
+### `esta_vencido`
+
+Indicates if a report is over 30 days old:
+
+```python
+@property
+def esta_vencido(self):
+    if self.fecha_creacion:
+        return (timezone.now() - self.fecha_creacion).days > 30
+    return False
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Names">
+    Name reports clearly with period and type (e.g., "October 2025 Sales Report") for easy identification in lists.
+  </Accordion>
+  <Accordion title="Generate Before Exporting">
+    Always click **Generate Report** before exporting to ensure data is current. The cache persists between exports.
+  </Accordion>
+  <Accordion title="Choose Appropriate Periods">
+    - **Daily**: For operational monitoring
+    - **Weekly**: For short-term trends
+    - **Monthly**: For standard financial reporting
+    - **Quarterly/Annual**: For strategic planning
+  </Accordion>
+  <Accordion title="Export Multiple Formats">
+    Generate once, then export to PDF for sharing, Excel for analysis, and CSV for archival or integration.
+  </Accordion>
+  <Accordion title="Regenerate Periodically">
+    If data changes frequently, regenerate reports daily or weekly to keep information current.
+  </Accordion>
+  <Accordion title="Archive Old Reports">
+    Delete or archive reports older than your retention policy (check `esta_vencido` property).
+  </Accordion>
+</AccordionGroup>
+
+## Permissions
+
+The reports module defines custom permissions:
+
+- `view_reporte`: Can view reports
+- `add_reporte`: Can create new reports
+- `change_reporte`: Can edit report configurations
+- `delete_reporte`: Can delete reports
+- `exportar_reporte`: Can export reports to files
+- `generar_reporte`: Can generate report data
+
+<Note>
+  Ensure users have appropriate permissions for their role. Reports can contain sensitive financial data.
+</Note>
+
+## Dependencies
+
+The reports module requires:
+
+- **openpyxl** (v3.1.5+): For Excel export
+- **reportlab** (v4.2.5+): For PDF generation
+
+Both are included in `requirements.txt`.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Report Shows No Data">
+    Verify that records exist in the selected date range. Check `fecha_inicio` and `fecha_fin` against actual data dates.
+  </Accordion>
+  <Accordion title="Export Button Disabled">
+    Ensure the report has been generated (`generado=True`). Click **Generate Report** first.
+  </Accordion>
+  <Accordion title="PDF/Excel Export Errors">
+    Confirm `openpyxl` and `reportlab` are installed. Run `pip install -r requirements.txt` to verify.
+  </Accordion>
+  <Accordion title="Data Outdated">
+    Regenerate the report by clicking **Generate Report** to fetch the latest information from the database.
+  </Accordion>
+  <Accordion title="CSV Not Opening Correctly in Excel">
+    The file uses UTF-8 with BOM. In Excel, use **Data > From Text/CSV** and select UTF-8 encoding.
+  </Accordion>
+</AccordionGroup>
+
+## Example Use Cases
+
+### Monthly Financial Review
+
+1. Create **General Report** for the past month
+2. Generate data to see sales vs. expenses
+3. Export to PDF for management meeting
+4. Export to Excel for detailed trend analysis
+
+### Inventory Audit
+
+1. Create **Inventory Report** for current date
+2. Generate to capture current stock levels
+3. Export to Excel
+4. Use Excel filters to identify low stock items
+5. Share CSV with procurement team
+
+### Payroll Processing
+
+1. Create **Payroll Report** for pay period
+2. Generate to include all active employees
+3. Export to PDF for HR records
+4. Export to CSV for payroll software import
+
+### Expense Analysis
+
+1. Create **Expense Report** for fiscal quarter
+2. Generate to aggregate all expenses
+3. Export to Excel
+4. Create pivot tables to analyze spending by category
+
+<Info>
+  Reports can be created multiple times with different date ranges to compare periods (e.g., month-over-month or year-over-year).
+</Info>
+
+---
+
+**Next Steps**: Learn about [Automated Backups](/operations/backups) to protect your data.

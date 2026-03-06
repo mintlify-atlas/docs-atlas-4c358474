@@ -1,0 +1,336 @@
+---
+title: 'Products & Inventory'
+description: 'Manage your product catalog, inventory levels, and supplier relationships'
+icon: 'box'
+---
+
+## Overview
+
+Bar Galileo's inventory system provides complete control over your products, stock levels, suppliers, and pricing. Track every item in your restaurant from purchase to sale.
+
+<CardGroup cols={2}>
+  <Card title="Product Catalog" icon="list">
+    Manage products with pricing, categories, and brands
+  </Card>
+  <Card title="Stock Tracking" icon="chart-line">
+    Monitor inventory levels with automatic history
+  </Card>
+  <Card title="Supplier Management" icon="truck">
+    Maintain supplier contacts and relationships
+  </Card>
+  <Card title="Product Images" icon="image">
+    Upload multiple images per product in WebP format
+  </Card>
+</CardGroup>
+
+## Product Management
+
+### Product Information
+
+Each product in your catalog contains:
+
+- **nombre**: Product name (must be unique)
+- **precio_compra**: Purchase price from supplier
+- **precio_venta**: Sale price to customers
+- **stock**: Current inventory quantity
+- **descripcion**: Optional product description
+- **activo**: Whether product is available for sale
+- **id_categoria**: Product category for organization
+- **id_marca**: Brand or manufacturer
+- **id_proveedor**: Primary supplier
+
+### Creating Products
+
+<Steps>
+  <Step title="Access Products Module">
+    Navigate to the products section to view your catalog.
+  </Step>
+  
+  <Step title="Add New Product">
+    Click to create a new product and fill in the required information:
+    - Unique product name
+    - Purchase and sale prices
+    - Initial stock quantity
+    - Optional description for staff reference
+  </Step>
+  
+  <Step title="Assign Categories">
+    Select or create a category (e.g., "Beverages", "Appetizers", "Main Courses").
+  </Step>
+  
+  <Step title="Link Supplier">
+    Choose the primary supplier for this product from your supplier list.
+  </Step>
+  
+  <Step title="Add Product Images">
+    Upload product photos to help with identification and menu displays.
+  </Step>
+</Steps>
+
+<Note>
+  The system validates that sale price is greater than purchase price to ensure profitability.
+</Note>
+
+### Product Validation
+
+Bar Galileo automatically validates products to prevent errors:
+
+- **Name validation**: Product name cannot be empty or whitespace-only
+- **Price validation**: Sale price must be greater than purchase price
+- **Stock validation**: Stock quantity cannot be negative
+- **Unique names**: Each product must have a unique name
+
+<Warning>
+  If you try to save a product with a sale price lower than or equal to the purchase price, the system will reject it. This protects against selling products at a loss.
+</Warning>
+
+## Categories
+
+Organize products into logical categories for easier management:
+
+- **nombre_categoria**: Category name (e.g., "Drinks", "Food", "Desserts")
+- **descripcion**: Optional notes about the category
+
+<Accordion title="Category Best Practices">
+  Create categories that match your menu structure:
+  
+  - **By Type**: Appetizers, Main Courses, Desserts, Beverages
+  - **By Temperature**: Hot Dishes, Cold Dishes, Frozen Items
+  - **By Preparation**: Ready-to-Serve, Cook-to-Order
+  - **By Dietary**: Vegetarian, Vegan, Gluten-Free
+  
+  Categories help with:
+  - Menu organization
+  - Inventory reports
+  - Order filtering
+  - Pricing analysis
+</Accordion>
+
+## Brands
+
+Track product brands to:
+
+- Identify premium products
+- Analyze brand performance
+- Manage supplier relationships
+- Maintain consistent quality
+
+Each brand includes:
+- **marca**: Brand name
+- **descripcion**: Optional brand notes
+
+## Suppliers
+
+### Supplier Information
+
+Maintain detailed supplier records:
+
+- **nombre**: Supplier company name
+- **contacto**: Primary contact person
+- **telefono**: Contact phone number
+- **direccion**: Supplier address for deliveries and records
+
+<Steps>
+  <Step title="Add Supplier">
+    Create a new supplier record with their contact information.
+  </Step>
+  
+  <Step title="Link Products">
+    Assign products to their primary suppliers when creating or editing products.
+  </Step>
+  
+  <Step title="Maintain Contacts">
+    Keep supplier contact information current for ordering and issue resolution.
+  </Step>
+</Steps>
+
+<Note>
+  You can change a product's supplier at any time. Historical order data remains unchanged.
+</Note>
+
+## Inventory Tracking
+
+### Stock System
+
+Bar Galileo maintains detailed inventory history:
+
+- **id_producto**: Which product this stock record tracks
+- **cantidad**: Stock quantity at this point in time
+- **fecha_hora**: When this stock level was recorded
+
+### How Stock Tracking Works
+
+<Steps>
+  <Step title="Automatic Recording">
+    Every time a product's stock changes, the system automatically creates a stock history record.
+  </Step>
+  
+  <Step title="Historical View">
+    View complete stock history to track:
+    - When inventory was added
+    - When stock levels decreased
+    - Current inventory status
+    - Stock movement patterns
+  </Step>
+  
+  <Step title="Current Stock">
+    The system uses the most recent stock record to determine current inventory levels.
+  </Step>
+</Steps>
+
+### Stock Management Workflows
+
+<AccordionGroup>
+  <Accordion title="Receiving New Inventory">
+    When inventory arrives from suppliers:
+    
+    1. Locate the product in your catalog
+    2. Update the stock field with the new total quantity
+    3. The system automatically records this change with timestamp
+    4. The product is now available for orders
+  </Accordion>
+  
+  <Accordion title="Stock Takes (Physical Counts)">
+    To reconcile physical inventory:
+    
+    1. Count actual products on hand
+    2. Update each product's stock to match physical count
+    3. Review discrepancies between expected and actual
+    4. Investigate significant differences
+    5. System maintains record of adjustment
+  </Accordion>
+  
+  <Accordion title="Low Stock Monitoring">
+    Monitor stock levels regularly:
+    
+    - Set mental or documented thresholds for reordering
+    - Check products with low stock quantities
+    - Review stock history to predict usage patterns
+    - Order from suppliers before running out
+    - Update stock when new inventory arrives
+  </Accordion>
+</AccordionGroup>
+
+## Product Images
+
+### Image Management
+
+Upload and manage product images:
+
+- **Multiple images**: Each product can have multiple photos
+- **Automatic format**: Images are converted to WebP format for efficiency
+- **Organized storage**: Images stored in `media/productos/{product_id}/`
+- **Supported formats**: Upload PNG, JPG, JPEG, or WebP files
+
+<Steps>
+  <Step title="Upload Images">
+    When editing a product, upload one or more images from your device.
+  </Step>
+  
+  <Step title="Automatic Processing">
+    The system automatically:
+    - Validates file format
+    - Converts to WebP (85% quality)
+    - Stores in product-specific folder
+    - Links image to product
+  </Step>
+  
+  <Step title="Use in Menus">
+    Product images can be displayed in:
+    - Digital menus
+    - Point of sale system
+    - Staff training materials
+    - Online ordering (if implemented)
+  </Step>
+</Steps>
+
+<Note>
+  Images are stored in the media folder, not static files, allowing for dynamic management and updates.
+</Note>
+
+## Product Status
+
+### Active vs Inactive Products
+
+Control product availability with the **activo** field:
+
+- **Active (True)**: Product appears in order system and can be sold
+- **Inactive (False)**: Product is hidden but data is preserved
+
+<Accordion title="When to Deactivate Products">
+  Mark products as inactive instead of deleting them when:
+  
+  - Seasonal items are out of season
+  - Supplier discontinues the product
+  - Menu items are temporarily unavailable
+  - Testing new products before full rollout
+  - Keeping historical sales data intact
+  
+  **Benefits of deactivating vs deleting:**
+  - Preserves historical order data
+  - Maintains pricing history
+  - Can be reactivated easily
+  - Keeps reports accurate
+</Accordion>
+
+## Pricing Strategy
+
+### Purchase vs Sale Prices
+
+The system tracks both prices for profitability:
+
+- **precio_compra**: What you pay the supplier
+- **precio_venta**: What customers pay
+- **Margin**: Automatically calculated (precio_venta - precio_compra)
+
+<Note>
+  The system enforces that sale price must exceed purchase price. This validation prevents accidentally selling products at a loss.
+</Note>
+
+### Pricing Best Practices
+
+<AccordionGroup>
+  <Accordion title="Setting Initial Prices">
+    When adding new products:
+    
+    1. Enter the actual purchase price from supplier
+    2. Calculate desired markup percentage
+    3. Set sale price to achieve target margin
+    4. Consider competitor pricing
+    5. Factor in preparation costs and overhead
+  </Accordion>
+  
+  <Accordion title="Updating Prices">
+    When supplier prices change:
+    
+    1. Update the purchase price
+    2. Evaluate if sale price needs adjustment
+    3. Consider market conditions
+    4. Update sale price to maintain margins
+    5. New prices apply to future orders only
+  </Accordion>
+  
+  <Accordion title="Historical Price Data">
+    Remember:
+    
+    - Existing orders retain original prices
+    - Price changes don't affect completed transactions
+    - New orders use current prices
+    - This ensures accurate historical reporting
+  </Accordion>
+</AccordionGroup>
+
+## Reports and Analysis
+
+The inventory system enables:
+
+- **Stock levels**: Current inventory across all products
+- **Stock history**: Movement patterns over time
+- **Profit margins**: Difference between purchase and sale prices
+- **Product performance**: Which items sell most
+- **Supplier analysis**: Performance by supplier
+- **Category reports**: Sales and inventory by category
+
+<Note>
+  All inventory changes are timestamped automatically, providing an audit trail for reconciliation and analysis.
+</Note>

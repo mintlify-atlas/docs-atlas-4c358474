@@ -1,0 +1,214 @@
+---
+title: 'Tables & Orders Management'
+description: 'Manage restaurant tables and process customer orders efficiently'
+icon: 'utensils'
+---
+
+## Overview
+
+Bar Galileo's table and order management system helps your staff track table availability, create orders, and manage the complete dining workflow from seating to billing.
+
+<CardGroup cols={2}>
+  <Card title="Table Status" icon="table-cells">
+    Monitor table availability in real-time with four status levels
+  </Card>
+  <Card title="Order Processing" icon="receipt">
+    Create and manage orders with multiple items per table
+  </Card>
+  <Card title="Multi-User Orders" icon="users">
+    Associate multiple staff members with a single order
+  </Card>
+  <Card title="Order Tracking" icon="clock">
+    Track order status from creation to invoicing
+  </Card>
+</CardGroup>
+
+## Table Management
+
+### Table Statuses
+
+Each table in your restaurant can have one of four statuses:
+
+- **Disponible** (Available): Table is ready for new customers
+- **Ocupada** (Occupied): Table is currently serving customers
+- **Reservada** (Reserved): Table has been reserved for future service
+- **Fuera de servicio** (Out of Service): Table is temporarily unavailable
+
+### Managing Tables
+
+<Steps>
+  <Step title="View Tables">
+    Access the tables module to see all tables in your restaurant with their current status.
+  </Step>
+  
+  <Step title="Create New Table">
+    Add a new table by providing:
+    - **nombre**: Table name or number (e.g., "Mesa 1", "Table A")
+    - **descripcion**: Optional description (location, capacity notes)
+    - **estado**: Initial status (defaults to "Disponible")
+  </Step>
+  
+  <Step title="Update Table Status">
+    Change table status as customers arrive, are seated, or leave. The system automatically updates when orders are created or invoiced.
+  </Step>
+</Steps>
+
+<Note>
+  Table names must be unique to avoid confusion during service.
+</Note>
+
+## Order Management
+
+### Creating Orders
+
+Orders are the core of your restaurant's operations. Each order tracks:
+
+- **mesa**: The table being served (optional for takeout orders)
+- **usuarios**: Staff members responsible for this order
+- **fecha_creacion**: When the order was created
+- **estado**: Current order status
+- **items**: All products ordered with quantities and prices
+
+<Steps>
+  <Step title="Start an Order">
+    Select a table and create a new order. The table status automatically changes to "Ocupada".
+  </Step>
+  
+  <Step title="Add Order Items">
+    Add products to the order:
+    - Select the product from your inventory
+    - Specify quantity
+    - The system captures the current sale price automatically
+    - Each item calculates its subtotal (quantity × price)
+  </Step>
+  
+  <Step title="Assign Staff">
+    Associate one or more staff members with the order for accountability and commission tracking.
+  </Step>
+  
+  <Step title="Monitor Order Status">
+    Track the order through its lifecycle:
+    - **En Proceso**: Order is active and can be modified
+    - **Facturado**: Order has been invoiced and closed
+    - **Cancelado**: Order was cancelled
+  </Step>
+</Steps>
+
+### Order Items
+
+Each product added to an order becomes an order item with:
+
+- **producto**: The product being ordered (links to inventory)
+- **cantidad**: Quantity ordered
+- **precio_unitario**: Unit price at time of order (captured from product)
+- **subtotal**: Automatically calculated (cantidad × precio_unitario)
+
+<Note>
+  Prices are captured at order time, so future price changes don't affect existing orders.
+</Note>
+
+### Modifying Orders
+
+While an order is in "En Proceso" status, you can:
+
+- Add new items
+- Update quantities
+- Remove items
+- Change assigned staff members
+
+<Warning>
+  Once an order is invoiced ("Facturado"), it cannot be modified. You'll need to create a new order or issue a refund through the invoicing system.
+</Warning>
+
+## Order Workflows
+
+### Dine-In Service
+
+<Steps>
+  <Step title="Customer Arrival">
+    Assign customers to an available table. Status changes to "Ocupada".
+  </Step>
+  
+  <Step title="Take Order">
+    Create order and add items as customers request them. Items can be added incrementally.
+  </Step>
+  
+  <Step title="Order Processing">
+    Kitchen receives order details. Order remains in "En Proceso" status.
+  </Step>
+  
+  <Step title="Request Bill">
+    When customers are ready to pay, generate an invoice from the order.
+  </Step>
+  
+  <Step title="Complete Service">
+    After payment, order status becomes "Facturado" and table returns to "Disponible".
+  </Step>
+</Steps>
+
+### Takeout Orders
+
+<Accordion title="How to handle takeout orders">
+  For takeout orders, you can create an order without assigning a table:
+  
+  1. Create a new order and leave the **mesa** field empty
+  2. Add order items as usual
+  3. Process payment and invoice immediately
+  4. Mark order as complete
+  
+  This keeps your table management clean while still tracking all sales.
+</Accordion>
+
+### Split Orders
+
+<Accordion title="Handling customers who want to split the bill">
+  To split an order between multiple customers:
+  
+  1. Note the items each customer ordered
+  2. Create separate orders for each customer
+  3. Add only their items to their respective orders
+  4. Invoice each order separately
+  5. The original table can be assigned to the first order
+</Accordion>
+
+## Order Reporting
+
+The order system automatically tracks:
+
+- **Order totals**: Sum of all item subtotals
+- **Creation timestamps**: When orders were placed
+- **Update timestamps**: Last modification time
+- **Staff associations**: Who handled each order
+- **Table utilization**: Which tables generate the most orders
+
+<Note>
+  All timestamps are recorded automatically and cannot be manually edited, ensuring accurate records for reporting and auditing.
+</Note>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Order Status Current">
+    Update order status promptly to ensure accurate reporting and table availability. This helps with:
+    - Real-time table management
+    - Kitchen workflow
+    - Revenue tracking
+    - Staff performance monitoring
+  </Accordion>
+  
+  <Accordion title="Review Orders Before Invoicing">
+    Always verify order contents with customers before generating the invoice. Once invoiced, orders cannot be modified.
+  </Accordion>
+  
+  <Accordion title="Use Descriptive Table Names">
+    Name tables consistently (e.g., "Table 1", "Table 2" or "A1", "A2") to avoid confusion during busy service periods.
+  </Accordion>
+  
+  <Accordion title="Assign Staff to Orders">
+    Always associate staff members with orders for:
+    - Performance tracking
+    - Commission calculations
+    - Service accountability
+    - Issue resolution
+  </Accordion>
+</AccordionGroup>

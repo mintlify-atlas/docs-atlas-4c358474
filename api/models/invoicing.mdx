@@ -1,0 +1,393 @@
+---
+title: "Invoicing Models"
+description: "Safe invoice handling and reporting utilities for Bar Galileo"
+---
+
+## Overview
+
+The facturacion module provides utilities for safe invoice handling, statistics, and reporting. It includes wrapper classes and manager methods to handle potentially corrupted data gracefully.
+
+<Note>
+  This module works with the Factura model from the tables app but provides additional safety layers for data handling and reporting.
+</Note>
+
+---
+
+## FacturaSegura
+
+Wrapper class for safe invoice data handling, preventing decimal conversion errors.
+
+### Attributes
+
+<ParamField path="id" type="int" required>
+  Invoice ID.
+</ParamField>
+
+<ParamField path="numero" type="str" required>
+  Invoice number.
+</ParamField>
+
+<ParamField path="fecha" type="datetime" required>
+  Invoice date and time.
+</ParamField>
+
+<ParamField path="pedido_id" type="int" required>
+  Related order ID.
+</ParamField>
+
+<ParamField path="mesa_nombre" type="str">
+  Name of the table (if applicable).
+  - Can be None for orders without a table
+</ParamField>
+
+### Properties
+
+<Expandable title="total">
+  Safely returns the invoice total as a Decimal.
+  
+  ```python
+  @property
+  def total(self):
+      try:
+          if self._total_raw is not None:
+              return Decimal(str(self._total_raw))
+          return Decimal('0')
+      except (InvalidOperation, ValueError):
+          return Decimal('0')
+  ```
+  
+  **Returns**: Decimal value, defaults to 0 if conversion fails
+</Expandable>
+
+<Expandable title="total_display">
+  Returns formatted total in Colombian peso format.
+  
+  ```python
+  @property
+  def total_display(self):
+      from django.contrib.humanize.templatetags.humanize import intcomma
+      price_int = int(round(float(self.total)))
+      formatted_price = intcomma(price_int).replace(',', '.')
+      return f"${formatted_price}"
+  ```
+  
+  **Returns**: Formatted string like "$1.500.000"
+</Expandable>
+
+### Constructor
+
+```python
+def __init__(self, id, numero, total, fecha, pedido_id, mesa_nombre=None):
+    self.id = id
+    self.numero = numero
+    self._total_raw = total  # Stored internally
+    self.fecha = fecha
+    self.pedido_id = pedido_id
+    self.mesa_nombre = mesa_nombre
+```
+
+---
+
+## FacturacionManager
+
+Manager class providing static methods for invoice operations using direct SQL queries.
+
+### Methods
+
+<Expandable title="obtener_facturas_con_filtros()">
+  Retrieves invoices with optional filters using direct SQL.
+  
+  ```python
+  @staticmethod
+  def obtener_facturas_con_filtros(busqueda=None, fecha_inicio=None, fecha_fin=None):
+  ```
+  
+  **Parameters**:
+  - `busqueda` (str, optional): Search term to match against invoice number or table name
+  - `fecha_inicio` (datetime, optional): Start date filter (inclusive)
+  - `fecha_fin` (datetime, optional): End date filter (inclusive)
+  
+  **Returns**: List of FacturaSegura objects ordered by date (descending)
+  
+  **SQL Query**:
+  ```sql
+  SELECT 
+      f.id, 
+      f.numero, 
+      f.total, 
+      f.fecha, 
+      f.pedido_id,
+      m.nombre as mesa_nombre
+  FROM tables_factura f
+  LEFT JOIN tables_pedido p ON f.pedido_id = p.id
+  LEFT JOIN tables_mesa m ON p.mesa_id = m.id
+  WHERE [filters]
+  ORDER BY f.fecha DESC
+  ```
+</Expandable>
+
+<Expandable title="obtener_estadisticas()">
+  Retrieves invoice statistics using direct SQL.
+  
+  ```python
+  @staticmethod
+  def obtener_estadisticas():
+  ```
+  
+  **Returns**: Dictionary containing:
+  - `total_facturas` (int): Total number of invoices
+  - `total_ingresos` (float): Total revenue from all invoices
+  - `facturas_hoy` (int): Number of invoices created today
+  - `ingresos_hoy` (float): Revenue from today's invoices
+  
+  Returns zeros for all values if an error occurs.
+  
+  **Example Return**:
+  ```python
+  {
+      'total_facturas': 1250,
+      'total_ingresos': 45678900.50,
+      'facturas_hoy': 32,
+      'ingresos_hoy': 987650.00
+  }
+  ```
+</Expandable>
+
+<Expandable title="obtener_factura_por_id()">
+  Retrieves a single invoice by ID using Django ORM.
+  
+  ```python
+  @staticmethod
+  def obtener_factura_por_id(factura_id):
+  ```
+  
+  **Parameters**:
+  - `factura_id` (int): Invoice ID
+  
+  **Returns**: FacturaOriginal (Django model) object or None
+  
+  **Error Handling**:
+  - Returns None if invoice doesn't exist
+  - Returns None if decimal conversion fails (corrupted data)
+  - Logs errors to logger
+</Expandable>
+
+<Expandable title="obtener_factura_por_id_seguro()">
+  Retrieves a single invoice by ID using direct SQL for safety.
+  
+  ```python
+  @staticmethod
+  def obtener_factura_por_id_seguro(factura_id):
+  ```
+  
+  **Parameters**:
+  - `factura_id` (int): Invoice ID
+  
+  **Returns**: FacturaSegura object or None
+  
+  **SQL Query**:
+  ```sql
+  SELECT 
+      f.id,
+      f.numero,
+      f.total,
+      f.fecha,
+      f.pedido_id,
+      m.nombre as mesa_nombre
+  FROM tables_factura f
+  LEFT JOIN tables_pedido p ON f.pedido_id = p.id
+  LEFT JOIN tables_mesa m ON p.mesa_id = m.id
+  WHERE f.id = %s
+  ```
+</Expandable>
+
+<Expandable title="verificar_facturas_corruptas()">
+  Identifies invoices with corrupted decimal data.
+  
+  ```python
+  @staticmethod
+  def verificar_facturas_corruptas():
+  ```
+  
+  **Returns**: List of dictionaries containing corrupted invoice information:
+  ```python
+  [
+      {
+          'id': 123,
+          'numero': '00000123',
+          'total_corrupto': 'invalid_decimal_value'
+      },
+      ...
+  ]
+  ```
+  
+  Useful for data integrity checks and identifying records that need repair.
+</Expandable>
+
+---
+
+## Usage Examples
+
+### Filtering Invoices
+
+```python
+from facturacion.models import FacturacionManager
+from datetime import datetime, timedelta
+
+# Get all invoices
+facturas = FacturacionManager.obtener_facturas_con_filtros()
+
+# Search by invoice number or table name
+facturas = FacturacionManager.obtener_facturas_con_filtros(busqueda="Mesa 5")
+
+# Filter by date range
+fecha_inicio = datetime.now() - timedelta(days=30)
+fecha_fin = datetime.now()
+facturas = FacturacionManager.obtener_facturas_con_filtros(
+    fecha_inicio=fecha_inicio,
+    fecha_fin=fecha_fin
+)
+
+# Combined filters
+facturas = FacturacionManager.obtener_facturas_con_filtros(
+    busqueda="00000",
+    fecha_inicio=fecha_inicio,
+    fecha_fin=fecha_fin
+)
+
+# Display results
+for factura in facturas:
+    print(f"Factura {factura.numero}: {factura.total_display}")
+    if factura.mesa_nombre:
+        print(f"  Mesa: {factura.mesa_nombre}")
+```
+
+### Getting Statistics
+
+```python
+from facturacion.models import FacturacionManager
+
+estadisticas = FacturacionManager.obtener_estadisticas()
+
+print(f"Total Facturas: {estadisticas['total_facturas']}")
+print(f"Ingresos Totales: ${estadisticas['total_ingresos']:,.2f}")
+print(f"Facturas Hoy: {estadisticas['facturas_hoy']}")
+print(f"Ingresos Hoy: ${estadisticas['ingresos_hoy']:,.2f}")
+```
+
+### Safe Invoice Retrieval
+
+```python
+from facturacion.models import FacturacionManager
+
+# Using safe method (recommended for potentially corrupted data)
+factura = FacturacionManager.obtener_factura_por_id_seguro(123)
+if factura:
+    print(f"Número: {factura.numero}")
+    print(f"Total: {factura.total_display}")
+    print(f"Fecha: {factura.fecha}")
+else:
+    print("Factura no encontrada")
+
+# Using ORM method (may fail with corrupted data)
+factura = FacturacionManager.obtener_factura_por_id(123)
+if factura:
+    # Access Django model attributes
+    print(f"Pedido: {factura.pedido}")
+    print(f"Total: {factura.total}")
+```
+
+### Data Integrity Checks
+
+```python
+from facturacion.models import FacturacionManager
+
+# Check for corrupted invoices
+corruptas = FacturacionManager.verificar_facturas_corruptas()
+
+if corruptas:
+    print(f"Found {len(corruptas)} corrupted invoices:")
+    for factura in corruptas:
+        print(f"  ID: {factura['id']}")
+        print(f"  Número: {factura['numero']}")
+        print(f"  Total corrupto: {factura['total_corrupto']}")
+else:
+    print("No corrupted invoices found")
+```
+
+### Working with FacturaSegura
+
+```python
+from facturacion.models import FacturaSegura
+from decimal import Decimal
+
+# Create a FacturaSegura object manually
+factura = FacturaSegura(
+    id=1,
+    numero="00000001",
+    total=15000.50,  # Can handle various formats
+    fecha=datetime.now(),
+    pedido_id=42,
+    mesa_nombre="Mesa 3"
+)
+
+# Access properties
+print(factura.total)  # Decimal('15000.50')
+print(factura.total_display)  # "$15.000"
+
+# Safe handling of bad data
+factura_mala = FacturaSegura(
+    id=2,
+    numero="00000002",
+    total="invalid_number",  # Will be handled gracefully
+    fecha=datetime.now(),
+    pedido_id=43
+)
+
+print(factura_mala.total)  # Decimal('0')
+print(factura_mala.total_display)  # "$0"
+```
+
+---
+
+## Best Practices
+
+<Note>
+  **When to use FacturacionManager vs. Django ORM:**
+  
+  - Use `FacturacionManager` methods for:
+    - Reporting and statistics
+    - Filtering large datasets
+    - Working with potentially corrupted data
+    - Performance-critical queries
+  
+  - Use Django ORM (Factura model) for:
+    - Creating new invoices
+    - Updating invoice data
+    - Working with relationships (pedido, items, etc.)
+    - Transaction management
+</Note>
+
+<Note>
+  **Error Handling:**
+  
+  The module uses Python's logging module. Ensure your Django settings include proper logging configuration:
+  
+  ```python
+  LOGGING = {
+      'version': 1,
+      'handlers': {
+          'file': {
+              'class': 'logging.FileHandler',
+              'filename': 'facturacion.log',
+          },
+      },
+      'loggers': {
+          'facturacion.models': {
+              'handlers': ['file'],
+              'level': 'ERROR',
+          },
+      },
+  }
+  ```
+</Note>

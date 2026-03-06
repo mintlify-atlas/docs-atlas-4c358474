@@ -1,0 +1,305 @@
+---
+title: 'Authentication'
+description: 'User authentication and session management in Bar Galileo'
+---
+
+## Overview
+
+Bar Galileo uses **django-allauth** for authentication, providing both traditional username/password login and Google OAuth integration.
+
+## Authentication Backend
+
+```python
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+```
+
+## Login Endpoints
+
+### Standard Login
+
+<Card title="POST /accounts/login/" icon="right-to-bracket">
+  Authenticate with username and password
+</Card>
+
+**Endpoint:** `POST /accounts/login/`
+
+<ParamField body="login" type="string" required>
+  Username or email address
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User password
+</ParamField>
+
+<ParamField body="remember" type="boolean">
+  Remember this device (extends session)
+</ParamField>
+
+<ParamField body="csrfmiddlewaretoken" type="string" required>
+  CSRF token from the login form
+</ParamField>
+
+#### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-domain.com/accounts/login/ \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "login=user@example.com" \
+  -d "password=securepass123" \
+  -d "remember=on" \
+  -d "csrfmiddlewaretoken=TOKEN"
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-domain.com/accounts/login/',
+    data={
+        'login': 'user@example.com',
+        'password': 'securepass123',
+        'remember': 'on',
+        'csrfmiddlewaretoken': 'TOKEN'
+    }
+)
+```
+</CodeGroup>
+
+#### Response
+
+On successful login, redirects to `LOGIN_REDIRECT_URL` (default: `/`)
+
+```json
+{
+  "redirect": "/"
+}
+```
+
+### Google OAuth Login
+
+<Card title="GET /accounts/google/login/" icon="google">
+  Authenticate using Google OAuth
+</Card>
+
+**Endpoint:** `GET /accounts/google/login/`
+
+Initiates OAuth flow with Google. Configuration in `bar_galileo/settings.py:215`:
+
+```python
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+```
+
+#### OAuth Flow
+
+1. User clicks "Login with Google"
+2. Redirected to Google consent screen
+3. Google redirects back to `/accounts/google/login/callback/`
+4. Session created, user logged in
+
+<Note>
+Requires Google OAuth credentials configured in Django admin under Social Applications.
+</Note>
+
+## Logout
+
+<Card title="POST /accounts/logout/" icon="right-from-bracket">
+  End the current user session
+</Card>
+
+**Endpoint:** `POST /accounts/logout/`
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-domain.com/accounts/logout/ \
+  -H "Cookie: sessionid=YOUR_SESSION_ID" \
+  -H "X-CSRFToken: YOUR_CSRF_TOKEN"
+```
+
+```python Python
+import requests
+
+session = requests.Session()
+# After login, session has cookies
+session.post('https://your-domain.com/accounts/logout/')
+```
+</CodeGroup>
+
+## Session Management
+
+### Login Configuration
+
+```python
+LOGIN_URL = '/accounts/login/'  # Redirect destination for @login_required
+LOGIN_REDIRECT_URL = '/'        # Redirect after successful login
+```
+
+### Session Cookies
+
+Bar Galileo uses Django's session framework:
+
+| Cookie | Description |
+|--------|-------------|
+| `sessionid` | Session identifier (httponly) |
+| `csrftoken` | CSRF protection token |
+
+#### Production Security Settings
+
+```python
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+```
+
+## Email Management
+
+### Add Email Address
+
+<Card title="POST /accounts/email/" icon="envelope-circle-check">
+  Add or manage email addresses for the account
+</Card>
+
+**Endpoint:** `POST /accounts/email/`
+
+<ParamField body="action" type="string" required>
+  Action to perform: `add`, `remove`, or `primary`
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Email address
+</ParamField>
+
+<ParamField body="captcha_0" type="string" required>
+  CAPTCHA challenge ID
+</ParamField>
+
+<ParamField body="captcha_1" type="string" required>
+  CAPTCHA answer (math problem solution)
+</ParamField>
+
+Implemented in `accounts/views.py:4` as `CustomEmailView`.
+
+#### Example Request
+
+```bash
+curl -X POST https://your-domain.com/accounts/email/ \
+  -H "Cookie: sessionid=SESSION_ID" \
+  -H "X-CSRFToken: CSRF_TOKEN" \
+  -d "action=add" \
+  -d "email=newemail@example.com" \
+  -d "captcha_0=abc123" \
+  -d "captcha_1=42"
+```
+
+## Protected Routes
+
+### Login Required Decorator
+
+Many views require authentication using Django's `LoginRequiredMixin`:
+
+```python
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class UploadDocumentView(LoginRequiredMixin, View):
+    def post(self, request):
+        # User must be authenticated
+        ...
+```
+
+### User Object
+
+Authenticated requests have access to `request.user`:
+
+```python
+if request.user.is_authenticated:
+    user_id = request.user.id
+    username = request.user.username
+    email = request.user.email
+```
+
+## CAPTCHA Protection
+
+<Warning>
+Certain endpoints (email changes, registration) require CAPTCHA validation using django-simple-captcha.
+</Warning>
+
+Configuration in `bar_galileo/settings.py:275`:
+
+```python
+CAPTCHA_LENGTH = 1  # Simple math problem
+CAPTCHA_IMAGE_SIZE = (225, 75)
+CAPTCHA_FONT_SIZE = 40
+```
+
+**CAPTCHA Endpoints:**
+- `GET /captcha/image/<key>/` - Retrieve CAPTCHA image
+- `GET /captcha/audio/<key>/` - Audio CAPTCHA (requires Flite)
+
+## Custom Forms
+
+Bar Galileo uses custom authentication forms:
+
+```python
+ACCOUNT_FORMS = {
+    'login': 'accounts.forms.CustomLoginForm',
+    'add_email': 'accounts.forms.CustomAddEmailForm',
+}
+```
+
+See `accounts/forms.py` for implementation details.
+
+## Permission Middleware
+
+Custom permission checking via `roles.middleware.PermissionMiddleware` at `bar_galileo/settings.py:94`.
+
+This middleware validates user permissions based on their assigned roles before processing requests.
+
+## Error Responses
+
+### Unauthorized (401)
+
+```json
+{
+  "detail": "Authentication credentials were not provided."
+}
+```
+
+### Forbidden (403)
+
+```json
+{
+  "detail": "You do not have permission to perform this action."
+}
+```
+
+## Best Practices
+
+<Check>
+- Always use HTTPS in production
+- Store session cookies securely
+- Implement rate limiting for login attempts
+- Use strong password policies
+- Enable two-factor authentication (not currently implemented)
+</Check>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="RAG Chat API" icon="comments" href="/api/endpoints/rag-chat">
+    Explore authenticated RAG endpoints
+  </Card>
+  <Card title="API Overview" icon="book" href="/api/endpoints/overview">
+    Return to API overview
+  </Card>
+</CardGroup>

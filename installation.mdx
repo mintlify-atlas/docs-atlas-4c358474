@@ -1,0 +1,557 @@
+---
+title: 'Installation'
+description: 'Complete installation guide for Bar Galileo'
+---
+
+## System Requirements
+
+Before installing Bar Galileo, ensure your system meets these requirements:
+
+<CardGroup cols={3}>
+  <Card title="Python" icon="python">
+    Version 3.11 or higher
+  </Card>
+  <Card title="MySQL/MariaDB" icon="database">
+    Version 5.7+ or MariaDB 10.3+
+  </Card>
+  <Card title="Memory" icon="memory">
+    Minimum 2GB RAM
+  </Card>
+</CardGroup>
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="Standard Installation">
+    
+### 1. Clone the Repository
+
+Get the Bar Galileo source code:
+
+```bash
+git clone https://github.com/Christian3h/bar-galileo.git
+cd bar-galileo
+```
+
+### 2. Create Virtual Environment
+
+Isolate your Python dependencies:
+
+<CodeGroup>
+```bash Linux/macOS
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+```bash Windows (PowerShell)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+```bash Windows (Command Prompt)
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+</CodeGroup>
+
+<Info>
+  Your terminal prompt should now show `(.venv)` indicating the virtual environment is active.
+</Info>
+
+### 3. Install System Dependencies
+
+Install MySQL client libraries required by the `mysqlclient` package:
+
+<CodeGroup>
+```bash Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install python3-dev default-libmysqlclient-dev build-essential pkg-config
+```
+
+```bash Fedora/RHEL/CentOS
+sudo dnf install python3-devel mysql-devel
+```
+
+```bash macOS
+brew install mysql pkg-config
+```
+
+```bash Windows
+# Download MySQL Connector/C from:
+# https://dev.mysql.com/downloads/connector/c/
+# Install it, then add to PATH
+```
+</CodeGroup>
+
+### 4. Install Python Dependencies
+
+Install all required packages from requirements.txt:
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+<Note>
+  This may take several minutes. Key packages include:
+  - **Django 5.2.4** - Web framework
+  - **Django Channels 4.3.1** - WebSocket support
+  - **mysqlclient 2.2.7** - MySQL database adapter
+  - **reportlab 4.2.5** - PDF generation
+  - **openpyxl 3.1.5** - Excel export
+  - **sentence-transformers 3.3.1** - AI embeddings for RAG chat
+</Note>
+
+  </Tab>
+  
+  <Tab title="Docker Installation">
+    
+<Info>
+  Docker support coming soon. Currently, use standard installation method.
+</Info>
+
+  </Tab>
+</Tabs>
+
+## Database Configuration
+
+### MySQL Setup
+
+<Steps>
+  <Step title="Install MySQL Server">
+    <CodeGroup>
+    ```bash Ubuntu/Debian
+    sudo apt-get install mysql-server
+    sudo systemctl start mysql
+    sudo systemctl enable mysql
+    ```
+    
+    ```bash macOS
+    brew install mysql
+    brew services start mysql
+    ```
+    
+    ```bash Windows
+    # Download from: https://dev.mysql.com/downloads/installer/
+    # Run the installer and follow prompts
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Secure MySQL Installation">
+    ```bash
+    sudo mysql_secure_installation
+    ```
+    
+    Follow prompts to:
+    - Set root password
+    - Remove anonymous users
+    - Disable remote root login
+    - Remove test database
+  </Step>
+
+  <Step title="Create Database and User">
+    Log into MySQL:
+    
+    ```bash
+    sudo mysql -u root -p
+    ```
+    
+    Create the database with proper character encoding:
+    
+    ```sql
+    CREATE DATABASE bar_galileo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    ```
+    
+    Create a dedicated user:
+    
+    ```sql
+    CREATE USER 'bar_galileo_user'@'localhost' IDENTIFIED BY 'your_secure_password';
+    ```
+    
+    Grant privileges:
+    
+    ```sql
+    GRANT ALL PRIVILEGES ON bar_galileo.* TO 'bar_galileo_user'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+    
+    Verify and exit:
+    
+    ```sql
+    SHOW DATABASES;
+    EXIT;
+    ```
+    
+    <Warning>
+      Use a strong password! Consider using a password generator for production environments.
+    </Warning>
+  </Step>
+
+  <Step title="Test Database Connection">
+    ```bash
+    mysql -u bar_galileo_user -p bar_galileo
+    ```
+    
+    If successful, you'll see the MySQL prompt. Type `EXIT;` to quit.
+  </Step>
+</Steps>
+
+## Environment Configuration
+
+### Create Environment File
+
+Bar Galileo uses environment variables for sensitive configuration. Create a `.env` file:
+
+```bash
+cd bar_galileo
+touch bar_galileo/.env
+```
+
+### Required Environment Variables
+
+Add the following to `bar_galileo/bar_galileo/.env`:
+
+```env
+# Django Secret Key - REQUIRED
+secret_key=your-random-secret-key-here
+
+# Database Configuration
+DB_NAME=bar_galileo
+DB_USER=bar_galileo_user
+DB_PASSWORD=your_secure_password
+DB_HOST=localhost
+DB_PORT=3306
+
+# Development/Production Mode
+DEBUG=True
+
+# Allowed Hosts (comma-separated)
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Email Configuration (for password reset, notifications)
+emailHost=your-email@gmail.com
+emailPassword=your-app-specific-password
+```
+
+<CodeGroup>
+```python Generate Secret Key
+# Run this command to generate a secure secret key:
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+```bash Example Output
+django-insecure-x3k9@$mz#4p&t8n2!f*9q7r1s^5w&h6j0u#v@k8l3n4m5
+```
+</CodeGroup>
+
+<Warning>
+  **Never commit the `.env` file to version control!** Add it to `.gitignore` to keep secrets safe.
+</Warning>
+
+### Configuration Details
+
+Here's how settings.py loads these variables:
+
+```python bar_galileo/bar_galileo/settings.py
+from dotenv import load_dotenv
+from pathlib import Path
+import os
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / '.env')
+
+# Database configuration
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'bar_galileo'),
+        'USER': os.getenv('DB_USER', 'bar_galileo_user'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+    }
+}
+```
+
+## Database Migrations
+
+Run migrations to create all database tables:
+
+```bash
+cd bar_galileo
+python manage.py migrate
+```
+
+You should see output like:
+
+```
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, sessions, accounts, products, tables, ...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying products.0001_initial... OK
+  ...
+```
+
+<Info>
+  Migrations create tables for all Bar Galileo modules: products, tables, orders, inventory, expenses, payroll, reports, notifications, and backups.
+</Info>
+
+## Create Admin User
+
+Create a superuser account to access the admin interface:
+
+```bash
+python manage.py createsuperuser
+```
+
+Enter the required information:
+
+```
+Username: admin
+Email: admin@bargalileo.com
+Password: ********
+Password (again): ********
+Superuser created successfully.
+```
+
+## Static Files Collection
+
+For production deployments, collect static files:
+
+```bash
+python manage.py collectstatic
+```
+
+This gathers CSS, JavaScript, and images into the `staticfiles/` directory.
+
+<Note>
+  In development mode with `DEBUG=True`, Django serves static files automatically.
+</Note>
+
+## Running the Server
+
+### Development Server
+
+For basic development:
+
+```bash
+python manage.py runserver
+```
+
+Access at: http://localhost:8000
+
+### Production-like Server (Recommended)
+
+For full functionality including WebSockets:
+
+```bash
+# From project root (bar-galileo/)
+./run_server.sh
+```
+
+This runs Uvicorn with ASGI support:
+
+```bash run_server.sh
+#!/bin/bash
+cd bar_galileo
+
+../.venv/bin/python -m uvicorn bar_galileo.asgi:application \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --reload-include="*.py" \
+    --reload-include="*.html" \
+    --reload-include="*.css" \
+    --reload-include="*.js"
+```
+
+<Info>
+  The `run_server.sh` script:
+  - Enables WebSocket support for real-time notifications
+  - Binds to `0.0.0.0` for network access
+  - Auto-reloads on file changes (Python, HTML, CSS, JS)
+  - Shows local IP for mobile device testing
+</Info>
+
+## Production Deployment
+
+### Security Settings
+
+For production, update your `.env`:
+
+```env
+DEBUG=False
+ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+secret_key=your-production-secret-key
+```
+
+When `DEBUG=False`, Django automatically enables:
+- SSL redirect (`SECURE_SSL_REDIRECT=True`)
+- Secure cookies (`SESSION_COOKIE_SECURE=True`)
+- HSTS headers
+- CSRF protection
+
+From settings.py:
+
+```python bar_galileo/bar_galileo/settings.py
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+```
+
+### Using Daphne (ASGI Server)
+
+<CodeGroup>
+```bash Install Daphne
+pip install daphne
+```
+
+```bash Run with Daphne
+daphne -b 0.0.0.0 -p 8000 bar_galileo.asgi:application
+```
+</CodeGroup>
+
+### Using systemd Service
+
+Create a systemd service file:
+
+```ini /etc/systemd/system/bargalileo.service
+[Unit]
+Description=Bar Galileo Django Application
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/bar-galileo/bar_galileo
+Environment="PATH=/var/www/bar-galileo/.venv/bin"
+ExecStart=/var/www/bar-galileo/.venv/bin/daphne -b 127.0.0.1 -p 8000 bar_galileo.asgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable bargalileo
+sudo systemctl start bargalileo
+sudo systemctl status bargalileo
+```
+
+## Verification
+
+Verify your installation:
+
+<Steps>
+  <Step title="Check Server">
+    Visit http://localhost:8000 - you should see the Bar Galileo login page.
+  </Step>
+  
+  <Step title="Admin Login">
+    Log in with your superuser credentials.
+  </Step>
+  
+  <Step title="Check Database">
+    ```bash
+    mysql -u bar_galileo_user -p bar_galileo -e "SHOW TABLES;"
+    ```
+    
+    You should see tables for all modules.
+  </Step>
+  
+  <Step title="Test WebSockets">
+    If using `run_server.sh` or Daphne, real-time notifications should work.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: No module named 'MySQLdb'">
+    Install MySQL client libraries:
+    
+    ```bash
+    # Ubuntu/Debian
+    sudo apt-get install python3-dev default-libmysqlclient-dev build-essential
+    
+    # Then reinstall mysqlclient
+    pip install mysqlclient
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: Access denied for user">
+    Check your database credentials in `.env`:
+    - Verify `DB_USER` and `DB_PASSWORD` match what you created
+    - Test MySQL connection: `mysql -u bar_galileo_user -p`
+  </Accordion>
+  
+  <Accordion title="Error: (2002) Can't connect to MySQL server">
+    Ensure MySQL is running:
+    
+    ```bash
+    sudo systemctl status mysql
+    sudo systemctl start mysql
+    ```
+  </Accordion>
+  
+  <Accordion title="Static files not loading">
+    Collect static files:
+    
+    ```bash
+    python manage.py collectstatic --noinput
+    ```
+    
+    Check `STATIC_ROOT` in settings.py is writable.
+  </Accordion>
+  
+  <Accordion title="WebSockets not working">
+    - Use `run_server.sh` or Daphne instead of `runserver`
+    - Check that Channels is installed: `pip show channels`
+    - Verify ASGI configuration in `asgi.py`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Follow the quickstart guide to create your first product
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Configure OAuth, email, backups, and more
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Explore Bar Galileo's REST API
+  </Card>
+  
+  <Card title="User Management" icon="users" href="/user-management">
+    Set up roles, permissions, and staff accounts
+  </Card>
+</CardGroup>
+
+## Need Help?
+
+If you encounter issues not covered here:
+
+1. Check the Django logs for detailed error messages
+2. Review the [GitHub repository](https://github.com/Christian3h/bar-galileo) for documentation
+3. Contact the Bar Galileo team at bargalileo07@gmail.com
+
+<Note>
+  Bar Galileo is actively maintained by the team at Bar Galileo in Sogamoso, Boyacá, Colombia.
+</Note>

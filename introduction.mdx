@@ -1,0 +1,115 @@
+---
+title: Introduction
+description: Sistema de gestión integral para bar/restaurante con manejo de mesas, pedidos, inventario, facturación, nóminas, gastos y reportes.
+---
+
+<div className="bg-white border border-[#e0e0e0] rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.05)] p-8 mb-8">
+  <div className="flex items-center gap-4 mb-6">
+    <div className="w-16 h-16 bg-[#94cb04] rounded-lg flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="white" className="w-10 h-10">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+      </svg>
+    </div>
+    <div>
+      <h1 className="text-[48px] font-bold text-[#1a1a1a] leading-tight" style={{fontFamily: 'Inter'}}>Bar Galileo</h1>
+      <p className="text-[18px] text-[#545454] mt-1" style={{fontFamily: 'Inter'}}>Complete Restaurant Management System</p>
+    </div>
+  </div>
+  <p className="text-[14px] text-[#1a1a1a] leading-relaxed" style={{fontFamily: 'Inter'}}>
+    Bar Galileo is a comprehensive web application designed for bar and restaurant management in Sogamoso, Boyacá, Colombia. 
+    Built with Django 5.2.4 and Python 3.13, it provides real-time table management, inventory control, invoicing, payroll, 
+    and advanced features like WebSocket notifications and AI-powered document chat.
+  </p>
+</div>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Table & Order Management" icon="chair" href="/features/tables-orders">
+    Real-time table status tracking, order management, and seamless billing integration
+  </Card>
+  <Card title="Product Inventory" icon="boxes-stacked" href="/features/products-inventory">
+    Complete product catalog with categories, brands, suppliers, and stock tracking
+  </Card>
+  <Card title="Invoicing System" icon="file-invoice-dollar" href="/features/invoicing">
+    Automated invoice generation with PDF export and billing history
+  </Card>
+  <Card title="User & Role Management" icon="users" href="/features/users-roles">
+    Custom permission system with role-based access control and Google OAuth
+  </Card>
+  <Card title="Employee Management" icon="id-card" href="/operations/payroll">
+    Payroll processing, employee records, bonuses, and payment tracking
+  </Card>
+  <Card title="Expense Tracking" icon="receipt" href="/operations/expenses">
+    Categorized expense management with receipt upload and reporting
+  </Card>
+  <Card title="Reports & Analytics" icon="chart-line" href="/operations/reports">
+    Generate PDF and Excel reports for sales, inventory, and financial data
+  </Card>
+  <Card title="Automated Backups" icon="database" href="/operations/backups">
+    GPG-encrypted database and media backups with automated retention
+  </Card>
+</CardGroup>
+
+## Advanced Capabilities
+
+<Note>
+  Bar Galileo includes enterprise-grade features like **real-time WebSocket notifications** for order updates 
+  and an **AI-powered RAG chat assistant** that can answer questions about uploaded documents using Sentence 
+  Transformers and FAISS vector search.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="WebSocket Notifications" icon="bell" href="/advanced/notifications">
+    Real-time notifications for orders, inventory alerts, and system events
+  </Card>
+  <Card title="RAG Chat Assistant" icon="comments" href="/advanced/rag-chat">
+    AI-powered Q&A system with document indexing and semantic search
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+Bar Galileo is built on a modern, production-ready technology stack:
+
+| Category | Technology |
+|----------|------------|
+| **Backend** | Django 5.2.4, Python 3.13 |
+| **Database** | MySQL/MariaDB |
+| **Frontend** | HTML5, CSS3, JavaScript |
+| **WebSockets** | Django Channels, Daphne |
+| **Authentication** | Django Allauth (Google OAuth) |
+| **Reports** | ReportLab (PDF), OpenPyXL (Excel) |
+| **AI/RAG** | Sentence Transformers, FAISS, Google Gemini API |
+
+## Getting Started
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running in 15 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Full setup guide with database configuration
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/endpoints/overview">
+    Explore the data models and endpoints
+  </Card>
+</CardGroup>
+
+## Project Information
+
+<Info>
+  Bar Galileo is developed for a premium cocktail bar in Sogamoso, Boyacá, Colombia. 
+  For business inquiries, contact [bargalileo07@gmail.com](mailto:bargalileo07@gmail.com) or call +57 322-227-1308.
+</Info>
+
+### Development Team
+
+- **Christian** - Lead Developer
+- **Jorge Alfredo Arismendy Zambrano** - Developer
+- **Sebastian** - Developer
+- **Felipe** - Developer
+
+---
+
+Ready to explore? Start with the [Quickstart Guide](/quickstart) or dive into [Core Features](/features/tables-orders).

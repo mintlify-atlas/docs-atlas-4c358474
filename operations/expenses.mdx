@@ -1,0 +1,189 @@
+---
+title: Expense Tracking
+description: Track and categorize restaurant expenses with receipt management and detailed reporting
+---
+
+The expense tracking module helps you manage all restaurant operational costs, from ingredients to utilities, with full categorization and receipt attachment capabilities.
+
+## Overview
+
+Expenses are tracked with:
+- **Date**: When the expense occurred
+- **Amount**: Cost in local currency (decimal precision)
+- **Category**: Organized classification (e.g., Food, Utilities, Supplies)
+- **Description**: Detailed notes about the expense
+- **Receipt**: File upload for documentation
+- **User**: Who recorded the expense
+
+<Info>
+  All expenses are tied to the user who created them for audit trail purposes.
+</Info>
+
+## Managing Expense Categories
+
+### Creating Categories
+
+Before adding expenses, set up your categories:
+
+<Steps>
+  <Step title="Access Categories">
+    Navigate to **Expenses** > **Categories** in the admin panel
+  </Step>
+  <Step title="Add New Category">
+    Click **Add Expense Category** and enter a unique name
+  </Step>
+  <Step title="Save">
+    Categories are available immediately for expense tracking
+  </Step>
+</Steps>
+
+### Common Categories
+
+Recommended category structure:
+
+- **Food & Ingredients**: Raw materials for menu items
+- **Beverages**: Alcoholic and non-alcoholic drink supplies
+- **Utilities**: Electricity, water, gas, internet
+- **Supplies**: Napkins, cleaning products, disposables
+- **Maintenance**: Equipment repairs and facility upkeep
+- **Marketing**: Advertising and promotional expenses
+- **Payroll**: Employee wages and benefits (if not using Payroll module)
+- **Other**: Miscellaneous expenses
+
+<Warning>
+  Categories use `PROTECT` deletion behavior. You cannot delete a category if expenses are assigned to it.
+</Warning>
+
+## Recording Expenses
+
+### Add a New Expense
+
+<Steps>
+  <Step title="Navigate to Expenses">
+    Go to **Expenses** > **Add Expense**
+  </Step>
+  <Step title="Enter Expense Details">
+    Fill in the required fields:
+    - **Date**: Select the expense date
+    - **Amount**: Enter the cost (supports 2 decimal places)
+    - **Category**: Choose from your defined categories
+    - **Description**: Add context (vendor name, items purchased, etc.)
+  </Step>
+  <Step title="Upload Receipt (Optional)">
+    Attach a photo or PDF of the receipt for documentation. Files are stored in `media/receipts/`
+  </Step>
+  <Step title="Save">
+    The expense is recorded with your user account for tracking
+  </Step>
+</Steps>
+
+### Editing and Deleting
+
+- **Edit**: Click on an expense to modify details or add a receipt
+- **Delete**: Expenses can be deleted, which also removes associated receipt files
+
+<Note>
+  The system automatically tracks which user created each expense for accountability.
+</Note>
+
+## Expense Reports
+
+Generate comprehensive expense reports:
+
+### Report Features
+
+- **Total expenses** for a given period
+- **Breakdown by category** (top 5 categories)
+- **Average expense amount**
+- **Detailed list** with date, category, description, user, and amount
+
+### Generating Reports
+
+<Steps>
+  <Step title="Go to Reports Module">
+    Navigate to **Reports** > **Create Report**
+  </Step>
+  <Step title="Select Expense Report">
+    Choose **Type**: Gastos (Expenses)
+  </Step>
+  <Step title="Set Date Range">
+    Define the period: Daily, Weekly, Monthly, or Custom
+  </Step>
+  <Step title="Choose Format">
+    Select PDF, Excel, or CSV based on your needs
+  </Step>
+  <Step title="Generate and Export">
+    Click **Generate Report** to process data, then export in your chosen format
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Upload Receipts">
+    Attach receipts for expenses over a certain threshold (e.g., $50) for audit compliance and tax purposes.
+  </Accordion>
+  <Accordion title="Use Descriptive Text">
+    Include vendor names, invoice numbers, and specific items purchased in the description field.
+  </Accordion>
+  <Accordion title="Record Expenses Promptly">
+    Enter expenses daily to maintain accurate financial records and avoid forgetting transactions.
+  </Accordion>
+  <Accordion title="Review Monthly">
+    Generate monthly expense reports to identify spending trends and optimization opportunities.
+  </Accordion>
+  <Accordion title="Categorize Consistently">
+    Use the same categories for similar expenses to ensure accurate reporting and analysis.
+  </Accordion>
+</AccordionGroup>
+
+## Model Reference
+
+The expense system uses two models:
+
+### ExpenseCategory
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | CharField(100) | Unique category name |
+
+### Expense
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `date` | DateField | When the expense occurred |
+| `amount` | DecimalField(10,2) | Expense cost |
+| `category` | ForeignKey | Link to ExpenseCategory (protected) |
+| `description` | TextField | Detailed notes |
+| `receipt` | FileField | Optional receipt file (stored in `receipts/`) |
+| `user` | ForeignKey | User who recorded the expense |
+
+## Integration with Financial Reports
+
+Expense data feeds into the **General Report** type, which compares:
+
+- Total sales vs. total expenses
+- Gross profit and margin calculations
+- Daily breakdown of revenue and costs
+
+<Info>
+  For comprehensive financial analysis, combine expense reports with sales and inventory reports.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot Delete Category">
+    Categories are protected if expenses reference them. Reassign expenses to another category first, or use the "Other" category.
+  </Accordion>
+  <Accordion title="Receipt Upload Fails">
+    Check file size (max 10MB) and format (JPG, PNG, PDF recommended). Ensure `MEDIA_ROOT` is writable.
+  </Accordion>
+  <Accordion title="Expense Not in Report">
+    Verify the expense date falls within the report's date range and that the report has been regenerated after adding new expenses.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+**Next Steps**: Learn about [Payroll Management](/operations/payroll) to track employee compensation.

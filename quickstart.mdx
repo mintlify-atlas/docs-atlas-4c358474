@@ -1,80 +1,230 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart Guide'
+description: 'Get Bar Galileo up and running in 10 minutes'
 ---
 
-## Get started in three steps
+## Get Started with Bar Galileo
 
-Get your documentation site running locally and make your first customization.
+This guide will help you get Bar Galileo running on your local machine quickly. You'll have a fully functional restaurant management system ready to use.
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Clone the Repository">
+    Get the source code from GitHub:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    git clone https://github.com/Christian3h/bar-galileo.git
+    cd bar-galileo
+    ```
+  </Step>
+
+  <Step title="Set Up Python Environment">
+    Create and activate a virtual environment:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    <CodeGroup>
+    ```bash Linux/macOS
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash Windows
+    python -m venv .venv
+    .venv\Scripts\activate
+    ```
+    </CodeGroup>
+    
+    <Note>
+      Bar Galileo requires Python 3.11 or higher. Check your version with `python --version`
+    </Note>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Install Dependencies">
+    Install all required Python packages:
+    
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    This installs Django 5.2.4, Django Channels for WebSocket support, and all other dependencies including:
+    - MySQL client
+    - ReportLab (PDF generation)
+    - OpenPyXL (Excel export)
+    - Sentence Transformers & FAISS (AI chat)
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Configure Database">
+    Create a MySQL database for Bar Galileo:
+    
+    ```bash
+    sudo mysql -u root
+    ```
+    
+    ```sql
+    CREATE DATABASE bar_galileo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER 'bar_galileo_user'@'localhost' IDENTIFIED BY 'your_password';
+    GRANT ALL PRIVILEGES ON bar_galileo.* TO 'bar_galileo_user'@'localhost';
+    FLUSH PRIVILEGES;
+    EXIT;
+    ```
+    
+    <Warning>
+      Replace `your_password` with a strong password. You'll need it in the next step.
+    </Warning>
+  </Step>
 
-### Step 3: Go live
+  <Step title="Set Environment Variables">
+    Create a `.env` file in `bar_galileo/bar_galileo/` directory:
+    
+    ```bash
+    cd bar_galileo
+    touch bar_galileo/.env
+    ```
+    
+    Add your configuration:
+    
+    ```env bar_galileo/bar_galileo/.env
+    secret_key=your-secret-key-here
+    DB_NAME=bar_galileo
+    DB_USER=bar_galileo_user
+    DB_PASSWORD=your_password
+    DB_HOST=localhost
+    DB_PORT=3306
+    DEBUG=True
+    ```
+    
+    <Info>
+      Generate a secure `secret_key` using: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+    </Info>
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Run Database Migrations">
+    Initialize the database schema:
+    
+    ```bash
+    python manage.py migrate
+    ```
+    
+    This creates all necessary tables for products, orders, inventory, users, and more.
+  </Step>
 
-## Next steps
+  <Step title="Create Admin User">
+    Create your superuser account:
+    
+    ```bash
+    python manage.py createsuperuser
+    ```
+    
+    Follow the prompts to set username, email, and password.
+  </Step>
 
-Now that you have your docs running, explore these key features:
+  <Step title="Start the Server">
+    Launch the development server:
+    
+    <CodeGroup>
+    ```bash Development Server
+    python manage.py runserver
+    ```
+    
+    ```bash Production-like (with WebSockets)
+    # From the project root
+    ./run_server.sh
+    ```
+    </CodeGroup>
+    
+    <Info>
+      The `run_server.sh` script uses Uvicorn for better WebSocket support and automatic reload on file changes.
+    </Info>
+  </Step>
+</Steps>
 
-<CardGroup cols={2}>
+## Access Your Application
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+Once the server is running, you can access Bar Galileo at:
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+- **Local access**: http://localhost:8000
+- **Network access**: http://YOUR_LOCAL_IP:8000 (shown in terminal when using `run_server.sh`)
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+### First Login
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+Log in with the superuser credentials you created. You'll have access to:
 
-</CardGroup>
+- **Admin Dashboard** - Overview of restaurant operations
+- **Tables & Orders** - Manage tables and customer orders
+- **Products** - Add and manage your menu items
+- **Inventory** - Track stock levels
+- **Reports** - Generate PDF and Excel reports
+- **Users & Roles** - Manage staff permissions
+
+## Example: Create Your First Product
+
+After logging in, try adding a product:
+
+<Steps>
+  <Step title="Navigate to Products">
+    Click on "Products" in the main navigation menu.
+  </Step>
+  
+  <Step title="Add a Category">
+    First, create a category (e.g., "Cocktails", "Appetizers").
+  </Step>
+  
+  <Step title="Add a Product">
+    Click "New Product" and fill in:
+    - Product name
+    - Category
+    - Price
+    - Stock quantity
+    - Description
+    - Upload an image (PNG, JPG, or WEBP)
+  </Step>
+</Steps>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Product images are automatically converted to WebP format for optimal performance.
 </Note>
+
+## Key Features to Explore
+
+<CardGroup cols={2}>
+  <Card title="Real-time Notifications" icon="bell">
+    WebSocket-powered notifications keep staff updated on new orders and inventory alerts.
+  </Card>
+  
+  <Card title="AI Chat Assistant" icon="robot">
+    RAG-powered chatbot helps answer questions about your restaurant's documents.
+  </Card>
+  
+  <Card title="Automated Backups" icon="database">
+    Schedule automatic encrypted backups of your database and media files.
+  </Card>
+  
+  <Card title="Multi-format Reports" icon="file-export">
+    Export sales, inventory, and expense reports in PDF or Excel format.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Learn about advanced configuration options
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Configure email, OAuth, and production settings
+  </Card>
+</CardGroup>
+
+## Need Help?
+
+If you encounter issues:
+
+1. Check that MySQL is running: `sudo systemctl status mysql`
+2. Verify your `.env` file has correct database credentials
+3. Ensure Python 3.11+ is installed: `python --version`
+4. Check the Django logs for error messages
+
+<Warning>
+  If you see "Error loading mysqlclient", make sure you have MySQL development libraries installed:
+  - Ubuntu/Debian: `sudo apt-get install python3-dev default-libmysqlclient-dev build-essential`
+  - macOS: `brew install mysql`
+</Warning>

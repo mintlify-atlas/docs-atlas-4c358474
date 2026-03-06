@@ -1,0 +1,786 @@
+---
+title: 'Third-Party Integrations'
+description: 'External service integrations including Google OAuth, Gemini AI, and email services'
+icon: 'plug'
+---
+
+## Overview
+
+Bar Galileo integrates with several third-party services to enhance functionality, streamline authentication, and leverage AI capabilities. This guide covers configuration and usage of all major integrations.
+
+## Google OAuth Authentication
+
+### Overview
+
+Users can sign in using their Google accounts via `django-allauth`, providing a seamless authentication experience without password management.
+
+<Note>
+Google OAuth is particularly useful for restaurant staff who already use Google Workspace for business operations.
+</Note>
+
+### Installation
+
+<Steps>
+
+### Install django-allauth
+
+```bash
+pip install django-allauth
+```
+
+### Configure settings.py
+
+```python bar_galileo/settings.py
+INSTALLED_APPS = [
+    # ...
+    'django.contrib.sites',  # Required for allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+]
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Site ID for django.contrib.sites
+SITE_ID = 1
+
+# Google OAuth configuration
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# Custom login form
+ACCOUNT_FORMS = {
+    'login': 'accounts.forms.CustomLoginForm',
+    'add_email': 'accounts.forms.CustomAddEmailForm',
+}
+
+# Redirect URLs
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'
+```
+
+### Add middleware
+
+```python bar_galileo/settings.py
+MIDDLEWARE = [
+    # ...
+    'allauth.account.middleware.AccountMiddleware',
+]
+```
+
+### Configure URL routing
+
+```python bar_galileo/urls.py
+from django.urls import path, include
+
+urlpatterns = [
+    # ...
+    path('accounts/', include('allauth.urls')),
+]
+```
+
+### Run migrations
+
+```bash
+python manage.py migrate
+```
+
+</Steps>
+
+### Google Cloud Console Setup
+
+<Steps>
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Navigate to **APIs & Services** > **Credentials**
+4. Click **Create Credentials** > **OAuth 2.0 Client ID**
+5. Configure OAuth consent screen if prompted
+6. Select **Web application** as application type
+7. Add authorized redirect URIs:
+   ```
+   http://localhost:8000/accounts/google/login/callback/
+   https://yourdomain.com/accounts/google/login/callback/
+   ```
+8. Copy **Client ID** and **Client Secret**
+
+</Steps>
+
+### Add OAuth Credentials to Django Admin
+
+<Steps>
+
+1. Start Django server: `python manage.py runserver`
+2. Go to Django admin: `http://localhost:8000/admin/`
+3. Navigate to **Sites** and ensure your site domain is correct
+4. Go to **Social applications** > **Add social application**
+5. Fill in:
+   - Provider: **Google**
+   - Name: **Google OAuth**
+   - Client ID: *[your client ID]*
+   - Secret key: *[your client secret]*
+   - Sites: Select your site
+6. Click **Save**
+
+</Steps>
+
+### Template Integration
+
+```django templates/accounts/login.html
+{% load socialaccount %}
+
+<div class="social-login">
+  <a href="{% provider_login_url 'google' %}" class="btn btn-google">
+    <img src="{% static 'images/google-icon.svg' %}" alt="Google">
+    Sign in with Google
+  </a>
+</div>
+
+<!-- Or use the built-in button -->
+{% load socialaccount %}
+{% providers_media_js %}
+```
+
+### Custom Login Flow
+
+Create a custom form to add CAPTCHA protection:
+
+```python accounts/forms.py
+from allauth.account.forms import LoginForm
+from captcha.fields import CaptchaField
+
+class CustomLoginForm(LoginForm):
+    captcha = CaptchaField(
+        label='Verificación',
+        help_text='Ingrese los caracteres de la imagen'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Customize field attributes
+        self.fields['login'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Usuario o correo'
+        })
+```
+
+## Google Gemini AI Integration
+
+### Overview
+
+Bar Galileo uses Google's Gemini 2.0 Flash model for two main features:
+1. **RAG Chat**: Document Q&A with context retrieval
+2. **General Chat**: Conversational AI assistant
+
+### API Key Setup
+
+<Steps>
+
+### Get API Key
+
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Click **Create API Key**
+3. Copy the generated key
+
+### Add to environment variables
+
+```bash .env
+GOOGLE_API_KEY=AIzaSyC...
+```
+
+### Verify in Django settings
+
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Access API key
+api_key = os.getenv('GOOGLE_API_KEY')
+```
+
+</Steps>
+
+### RAG Implementation
+
+Used for document-based question answering:
+
+```python rag_chat/views.py
+import requests
+import os
+
+def _call_google_api_with_context(query: str, context_chunks: list):
+    """
+    Calls Gemini with document context for grounded answers.
+    """
+    api_key = os.getenv('GOOGLE_API_KEY')
+    if not api_key:
+        return None, 'GOOGLE_API_KEY not configured'
+    
+    # Build context from retrieved chunks
+    context_text = "\n\n".join([
+        f"[Page {c['metadata'].get('source_pages', ['?'])[0]}] {c['metadata']['content']}"
+        for c in context_chunks
+    ])
+    
+    prompt = f"""Based on the following manual information, answer the question.
+If the answer is not in the context, state that clearly.
+
+CONTEXT:
+{context_text}
+
+QUESTION: {query}
+
+ANSWER:"""
+    
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': api_key
+    }
+    payload = {
+        'contents': [{
+            'parts': [{'text': prompt}]
+        }]
+    }
+    
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    
+    if response.status_code != 200:
+        return None, f'API Error: {response.status_code}'
+    
+    result = response.json()
+    text = result['candidates'][0]['content']['parts'][0]['text']
+    
+    return text, None
+```
+
+### Chat with History
+
+For conversational AI with context memory:
+
+```python google_chat/views.py
+def _call_google_api(messages_history):
+    """
+    Calls Gemini with full conversation history.
+    
+    Args:
+        messages_history: List of {'role': 'user'|'model', 'content': str}
+    
+    Returns:
+        tuple: (response_text, error_message)
+    """
+    api_key = os.getenv('GOOGLE_API_KEY')
+    
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': api_key
+    }
+    
+    # Convert to Gemini format
+    contents = []
+    for msg in messages_history:
+        role = 'model' if msg['role'] == 'model' else 'user'
+        contents.append({
+            'role': role,
+            'parts': [{'text': msg['content']}]
+        })
+    
+    payload = {'contents': contents}
+    
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    result = response.json()
+    
+    if response.status_code == 200:
+        text = result['candidates'][0]['content']['parts'][0]['text']
+        return text, None
+    else:
+        return None, f'Error {response.status_code}: {response.text}'
+```
+
+### API Response Format
+
+**Request:**
+```json
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [{"text": "What is Django?"}]
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Django is a high-level Python web framework..."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP"
+    }
+  ]
+}
+```
+
+### Error Handling
+
+```python
+try:
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    
+    if response.status_code == 429:
+        return None, 'Rate limit exceeded. Please try again later.'
+    elif response.status_code == 403:
+        return None, 'Invalid API key or permissions.'
+    elif response.status_code != 200:
+        return None, f'API Error: {response.status_code}'
+    
+    result = response.json()
+    
+    # Check for safety blocks
+    if 'candidates' not in result:
+        return None, 'Response blocked by safety filters.'
+    
+    text = result['candidates'][0]['content']['parts'][0]['text']
+    return text, None
+    
+except requests.Timeout:
+    return None, 'Request timed out. Please try again.'
+except requests.RequestException as e:
+    return None, f'Network error: {str(e)}'
+```
+
+## Email Integration (SMTP)
+
+### Overview
+
+Bar Galileo uses SMTP for:
+- Password reset emails
+- User registration confirmations
+- Order notifications
+- Backup completion alerts
+
+### Gmail Configuration
+
+<Steps>
+
+### Enable 2-Step Verification
+
+1. Go to [Google Account Settings](https://myaccount.google.com/)
+2. Navigate to **Security**
+3. Enable **2-Step Verification**
+
+### Generate App Password
+
+1. In Security settings, go to **App passwords**
+2. Select **Mail** and **Other (Custom name)**
+3. Enter "Bar Galileo" as the name
+4. Copy the 16-character password
+
+### Add to .env file
+
+```bash .env
+emailHost=your-email@gmail.com
+emailPassword=abcd efgh ijkl mnop
+```
+
+</Steps>
+
+### Django Settings
+
+```python bar_galileo/settings.py
+import os
+
+# SMTP Configuration for Gmail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('emailHost')
+EMAIL_HOST_PASSWORD = os.getenv('emailPassword')
+DEFAULT_FROM_EMAIL = os.getenv('emailHost')
+
+# For development: print emails to console instead
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+```
+
+### Sending Emails
+
+<CodeGroup>
+
+```python Simple Email
+from django.core.mail import send_mail
+
+send_mail(
+    subject='Order Confirmed',
+    message='Your order #123 has been confirmed.',
+    from_email='noreply@bargalileo.com',
+    recipient_list=['customer@example.com'],
+    fail_silently=False,
+)
+```
+
+```python HTML Email
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+
+# Render HTML template
+html_content = render_to_string('emails/order_confirmation.html', {
+    'order': order,
+    'user': user,
+})
+
+# Create email
+email = EmailMultiAlternatives(
+    subject='Order Confirmation',
+    body='Your order has been confirmed.',  # Plain text fallback
+    from_email='noreply@bargalileo.com',
+    to=['customer@example.com'],
+)
+email.attach_alternative(html_content, "text/html")
+email.send()
+```
+
+```python Bulk Emails
+from django.core.mail import send_mass_mail
+
+messages = []
+for user in users:
+    messages.append((
+        'Weekly Report',
+        f'Hello {user.first_name}, here is your report...',
+        'noreply@bargalileo.com',
+        [user.email],
+    ))
+
+send_mass_mail(messages, fail_silently=False)
+```
+
+```python Email with Attachment
+from django.core.mail import EmailMessage
+
+email = EmailMessage(
+    subject='Monthly Invoice',
+    body='Please find attached your invoice.',
+    from_email='billing@bargalileo.com',
+    to=['customer@example.com'],
+)
+email.attach_file('/path/to/invoice.pdf')
+email.send()
+```
+
+</CodeGroup>
+
+### Email Templates
+
+```django templates/emails/order_confirmation.html
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .header { background: #4CAF50; color: white; padding: 20px; }
+        .content { padding: 20px; }
+        .footer { background: #f1f1f1; padding: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Bar Galileo</h1>
+    </div>
+    <div class="content">
+        <h2>Order Confirmed!</h2>
+        <p>Hello {{ user.first_name }},</p>
+        <p>Your order #{{ order.id }} has been confirmed.</p>
+        
+        <h3>Order Details:</h3>
+        <ul>
+            {% for item in order.items.all %}
+            <li>{{ item.product.name }} x {{ item.quantity }} - ${{ item.total }}</li>
+            {% endfor %}
+        </ul>
+        
+        <p><strong>Total: ${{ order.total }}</strong></p>
+    </div>
+    <div class="footer">
+        <p>&copy; 2026 Bar Galileo. All rights reserved.</p>
+    </div>
+</body>
+</html>
+```
+
+## Database Backup Integration
+
+### Overview
+
+Bar Galileo uses `django-dbbackup` with GPG encryption for secure database backups.
+
+### Configuration
+
+```python bar_galileo/settings.py
+STORAGES = {
+    "dbbackup": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": str(BASE_DIR / "backups" / "backup_files" / "db"),
+        },
+    },
+    "mediabackup": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": str(BASE_DIR / "backups" / "backup_files" / "media"),
+        },
+    },
+}
+
+# DBBackup settings
+DBBACKUP_STORAGE = 'dbbackup'
+DBBACKUP_MEDIA_STORAGE = 'mediabackup'
+DBBACKUP_MEDIA_PATH = MEDIA_ROOT
+
+# File naming
+DBBACKUP_FILENAME_TEMPLATE = '{datetime}.psql'
+DBBACKUP_MEDIA_FILENAME_TEMPLATE = '{datetime}.media.zip'
+
+# Cleanup - keep only last 10 backups
+DBBACKUP_CLEANUP_KEEP = 10
+DBBACKUP_CLEANUP_KEEP_MEDIA = 10
+
+# Compression
+DBBACKUP_COMPRESS = True
+DBBACKUP_COMPRESSION_LEVEL = 6
+
+# GPG Encryption
+DBBACKUP_ENCRYPTION = True
+DBBACKUP_GPG_RECIPIENT = 'bargalileo07@gmail.com'
+```
+
+### GPG Setup
+
+```bash
+# Generate GPG key
+gpg --full-generate-key
+# Follow prompts, use same email as GPG_RECIPIENT
+
+# List keys to verify
+gpg --list-keys
+
+# Export public key (for sharing)
+gpg --export -a "bargalileo07@gmail.com" > public.key
+
+# Backup private key (KEEP SECURE!)
+gpg --export-secret-keys -a "bargalileo07@gmail.com" > private.key
+```
+
+### Creating Backups
+
+```bash
+# Backup database
+python manage.py dbbackup
+
+# Backup media files
+python manage.py mediabackup
+
+# Backup both
+python manage.py dbbackup && python manage.py mediabackup
+
+# Clean old backups
+python manage.py dbbackup --clean
+```
+
+### Restoring Backups
+
+```bash
+# Restore database
+python manage.py dbrestore
+
+# Restore specific backup
+python manage.py dbrestore --input-filename=2026-03-06-143022.psql
+
+# Restore media files
+python manage.py mediarestore
+```
+
+## Security Best Practices
+
+<Warning>
+Always follow these security guidelines when integrating external services.
+</Warning>
+
+### Environment Variables
+
+```bash .env
+# NEVER commit this file to version control!
+DEBUG=False
+SECRET_KEY=your-secret-key-here
+GOOGLE_API_KEY=AIzaSyC...
+emailHost=your-email@gmail.com
+emailPassword=abcd efgh ijkl mnop
+DB_PASSWORD=secure-password
+```
+
+### .gitignore Configuration
+
+```bash .gitignore
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Backup files
+backups/
+*.gpg
+
+# API keys
+keys/
+credentials.json
+
+# Media uploads
+media/
+rag_documents/
+```
+
+### Production Settings
+
+```python bar_galileo/settings.py
+if not DEBUG:
+    # Force HTTPS
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # HSTS
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Security headers
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+```
+
+## Rate Limiting
+
+Protect your API integrations from abuse:
+
+```python
+from django.core.cache import cache
+from django.http import HttpResponseTooManyRequests
+
+def rate_limit(key_prefix, limit=10, period=60):
+    """
+    Rate limiting decorator.
+    
+    Args:
+        key_prefix: Cache key prefix
+        limit: Max requests per period
+        period: Time period in seconds
+    """
+    def decorator(view_func):
+        def wrapped(request, *args, **kwargs):
+            user_id = request.user.id if request.user.is_authenticated else request.META['REMOTE_ADDR']
+            cache_key = f"{key_prefix}:{user_id}"
+            
+            count = cache.get(cache_key, 0)
+            
+            if count >= limit:
+                return HttpResponseTooManyRequests(
+                    "Rate limit exceeded. Try again later."
+                )
+            
+            cache.set(cache_key, count + 1, period)
+            return view_func(request, *args, **kwargs)
+        
+        return wrapped
+    return decorator
+
+# Usage
+@rate_limit('rag_query', limit=20, period=60)
+class QueryRAGView(View):
+    def post(self, request):
+        # ...
+        pass
+```
+
+## Monitoring & Logging
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+def monitored_api_call(api_name, func, *args, **kwargs):
+    """
+    Wrapper for monitoring external API calls.
+    """
+    import time
+    
+    start_time = time.time()
+    
+    try:
+        result = func(*args, **kwargs)
+        duration = time.time() - start_time
+        
+        logger.info(f'{api_name} call succeeded', extra={
+            'duration': duration,
+            'status': 'success'
+        })
+        
+        return result
+    
+    except Exception as e:
+        duration = time.time() - start_time
+        
+        logger.error(f'{api_name} call failed', extra={
+            'duration': duration,
+            'status': 'error',
+            'error': str(e)
+        })
+        
+        raise
+
+# Usage
+response = monitored_api_call(
+    'google_gemini',
+    requests.post,
+    url, headers=headers, json=payload
+)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Notifications" icon="bell" href="/advanced/notifications">
+    Set up real-time WebSocket notifications
+  </Card>
+  <Card title="RAG Chat" icon="message-bot" href="/advanced/rag-chat">
+    Implement document Q&A system
+  </Card>
+</CardGroup>

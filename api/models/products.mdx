@@ -1,0 +1,389 @@
+---
+title: "Products Models"
+description: "Django models for product catalog, inventory, and stock management"
+---
+
+## Overview
+
+The products module contains models for managing the restaurant's product catalog, including products, categories, brands, suppliers, stock tracking, and product images.
+
+---
+
+## Producto
+
+Main product model representing items available for sale.
+
+<ParamField path="id_producto" type="AutoField" required>
+  Primary key for the product. Auto-generated.
+</ParamField>
+
+<ParamField path="nombre" type="CharField" required>
+  Product name. Must be unique.
+  - `max_length`: 50
+  - `unique`: True
+  - Validation: Cannot be empty or contain only whitespace
+</ParamField>
+
+<ParamField path="precio_compra" type="DecimalField" required>
+  Purchase price of the product.
+  - `max_digits`: 10
+  - `decimal_places`: 2
+  - Validation: Must be less than `precio_venta`
+</ParamField>
+
+<ParamField path="precio_venta" type="DecimalField" required>
+  Sale price of the product.
+  - `max_digits`: 10
+  - `decimal_places`: 2
+  - Validation: Must be greater than `precio_compra`
+</ParamField>
+
+<ParamField path="stock" type="IntegerField">
+  Current stock quantity.
+  - `default`: 0
+  - Validation: Cannot be negative
+  - Note: Changes to this field automatically create a Stock record
+</ParamField>
+
+<ParamField path="descripcion" type="TextField">
+  Product description.
+  - `blank`: True
+</ParamField>
+
+<ParamField path="activo" type="BooleanField">
+  Whether the product is active/available.
+  - `default`: True
+</ParamField>
+
+<ParamField path="id_categoria" type="ForeignKey">
+  Reference to product category.
+  - `to`: Categoria
+  - `on_delete`: SET_NULL
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+<ParamField path="id_proveedor" type="ForeignKey">
+  Reference to product supplier.
+  - `to`: Proveedor
+  - `on_delete`: SET_NULL
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+<ParamField path="id_marca" type="ForeignKey">
+  Reference to product brand.
+  - `to`: Marca
+  - `on_delete`: SET_NULL
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+### Methods
+
+<Expandable title="stock_actual()">
+  Returns the current stock quantity from the most recent Stock record.
+  
+  ```python
+  def stock_actual(self):
+      """Obtiene el stock actual desde la tabla Stock"""
+      ultimo_stock = self.stocks.order_by('-fecha_hora').first()
+      if ultimo_stock:
+          return ultimo_stock.cantidad
+      return self.stock or 0
+  ```
+</Expandable>
+
+<Expandable title="clean()">
+  Validates product data before saving:
+  - Name cannot be empty
+  - Sale price must be greater than purchase price
+  - Stock cannot be negative
+  
+  Raises `ValidationError` if any validation fails.
+</Expandable>
+
+<Expandable title="save()">
+  Custom save method that:
+  1. Runs full validation via `full_clean()`
+  2. Detects stock changes
+  3. Automatically creates a Stock record when stock is modified
+</Expandable>
+
+### Database
+
+- **Table name**: `producto`
+- **Related names**: `stocks` (reverse relation from Stock), `imagenes` (reverse relation from ProductoImagen)
+
+---
+
+## Categoria
+
+Product category model.
+
+<ParamField path="id_categoria" type="AutoField" required>
+  Primary key for the category.
+</ParamField>
+
+<ParamField path="nombre_categoria" type="CharField">
+  Category name.
+  - `max_length`: 50
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+<ParamField path="descripcion" type="TextField">
+  Category description.
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+### Database
+
+- **Table name**: `categoria`
+- **Verbose names**: Categoría (singular), Categorías (plural)
+
+---
+
+## Marca
+
+Product brand model.
+
+<ParamField path="id_marca" type="AutoField" required>
+  Primary key for the brand.
+</ParamField>
+
+<ParamField path="marca" type="CharField" required>
+  Brand name.
+  - `max_length`: 50
+</ParamField>
+
+<ParamField path="descripcion" type="TextField">
+  Brand description.
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+### Database
+
+- **Table name**: `marca`
+- **Verbose names**: Marca (singular), Marcas (plural)
+
+---
+
+## Proveedor
+
+Supplier/vendor model.
+
+<ParamField path="id_proveedor" type="AutoField" required>
+  Primary key for the supplier.
+</ParamField>
+
+<ParamField path="nombre" type="CharField" required>
+  Supplier name.
+  - `max_length`: 50
+</ParamField>
+
+<ParamField path="contacto" type="CharField" required>
+  Contact person name.
+  - `max_length`: 50
+</ParamField>
+
+<ParamField path="telefono" type="BigIntegerField">
+  Contact phone number.
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+<ParamField path="direccion" type="TextField" required>
+  Supplier address.
+</ParamField>
+
+### Database
+
+- **Table name**: `proveedor`
+- **Verbose names**: Proveedor (singular), Proveedores (plural)
+
+---
+
+## Stock
+
+Stock history tracking model. Records all stock changes for products.
+
+<ParamField path="id_stock" type="AutoField" required>
+  Primary key for the stock record.
+</ParamField>
+
+<ParamField path="id_producto" type="ForeignKey">
+  Reference to the product.
+  - `to`: Producto
+  - `on_delete`: SET_NULL
+  - `null`: True
+  - `blank`: True
+  - `db_column`: 'id_producto'
+  - `related_name`: 'stocks'
+</ParamField>
+
+<ParamField path="cantidad" type="IntegerField">
+  Stock quantity at this point in time.
+  - `null`: True
+  - `blank`: True
+</ParamField>
+
+<ParamField path="fecha_hora" type="DateTimeField">
+  Timestamp when the stock record was created.
+  - `auto_now_add`: True
+</ParamField>
+
+### Database
+
+- **Table name**: `stock`
+- **Verbose names**: Stock (singular), Stocks (plural)
+
+<Note>
+  Stock records are automatically created when a Producto's stock field is modified. This provides a complete audit trail of inventory changes.
+</Note>
+
+---
+
+## ProductoImagen
+
+Product image model. Supports multiple images per product.
+
+<ParamField path="id_imagen" type="AutoField" required>
+  Primary key for the image.
+</ParamField>
+
+<ParamField path="producto" type="ForeignKey" required>
+  Reference to the product.
+  - `to`: Producto
+  - `on_delete`: CASCADE
+  - `related_name`: 'imagenes'
+</ParamField>
+
+<ParamField path="imagen" type="ImageField" required>
+  Product image file.
+  - `upload_to`: producto_image_path (custom function)
+  - Images are stored in `media/productos/{product_id}/`
+  - Automatically converted to WebP format
+  - `help_text`: 'Imagen del producto (se guardará en media/productos/)'
+</ParamField>
+
+### Database
+
+- **Table name**: `producto_imagen`
+- **Verbose names**: Imagen del producto (singular), Imágenes de productos (plural)
+
+### Image Processing
+
+<Expandable title="producto_image_path()">
+  Generates the storage path for product images.
+  
+  ```python
+  def producto_image_path(instance, filename):
+      name, _ = os.path.splitext(filename)
+      filename = f"{name}.webp"
+      return f'productos/{instance.producto.id_producto}/{filename}'
+  ```
+</Expandable>
+
+<Expandable title="procesar_y_guardar_imagen()">
+  Utility function to process and save images in WebP format.
+  
+  ```python
+  def procesar_y_guardar_imagen(file, producto_id, nombre_base):
+      # Converts image to WEBP format with 85% quality
+      # Saves to media/productos/{producto_id}/
+      # Returns relative path from MEDIA_ROOT
+  ```
+</Expandable>
+
+---
+
+## Validators
+
+<Expandable title="validate_image_file()">
+  Custom validator for image uploads.
+  
+  **Allowed formats**: PNG, JPG, JPEG, WEBP
+  
+  **Allowed MIME types**: image/png, image/jpeg, image/webp
+  
+  ```python
+  def validate_image_file(file):
+      valid_exts = ['.png', '.jpg', '.jpeg', '.webp']
+      valid_mimes = ['image/png', 'image/jpeg', 'image/webp']
+      # Validates file extension and MIME type
+      # Raises ValidationError if invalid
+  ```
+</Expandable>
+
+---
+
+## Usage Examples
+
+### Creating a Product
+
+```python
+from products.models import Producto, Categoria, Marca, Proveedor
+
+# Create category, brand, and supplier
+categoria = Categoria.objects.create(
+    nombre_categoria="Bebidas",
+    descripcion="Bebidas alcohólicas y no alcohólicas"
+)
+
+marca = Marca.objects.create(
+    marca="Coca-Cola",
+    descripcion="Empresa de bebidas"
+)
+
+proveedor = Proveedor.objects.create(
+    nombre="Distribuidora ABC",
+    contacto="Juan Pérez",
+    telefono=3001234567,
+    direccion="Calle 123 #45-67"
+)
+
+# Create product
+producto = Producto.objects.create(
+    nombre="Coca-Cola 350ml",
+    precio_compra=1500.00,
+    precio_venta=3000.00,
+    stock=50,
+    descripcion="Bebida gaseosa sabor cola",
+    activo=True,
+    id_categoria=categoria,
+    id_marca=marca,
+    id_proveedor=proveedor
+)
+```
+
+### Updating Stock
+
+```python
+# Update stock (automatically creates Stock record)
+producto.stock = 75
+producto.save()
+
+# Get current stock
+stock_actual = producto.stock_actual()
+
+# View stock history
+historial = producto.stocks.order_by('-fecha_hora')
+```
+
+### Adding Product Images
+
+```python
+from products.models import ProductoImagen
+
+# Add image to product
+imagen = ProductoImagen.objects.create(
+    producto=producto,
+    imagen=uploaded_file  # Django UploadedFile object
+)
+
+# Get all product images
+imagenes = producto.imagenes.all()
+```

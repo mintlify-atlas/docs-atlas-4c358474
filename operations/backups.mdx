@@ -1,0 +1,487 @@
+---
+title: Automated Backups
+description: GPG-encrypted database and media backups with web-based management and restore capabilities
+---
+
+Bar Galileo includes a comprehensive backup system using django-dbbackup with GPG encryption, ensuring your data is secure and recoverable. The backup module provides web-based management for creating, downloading, and restoring backups.
+
+## Backup System Overview
+
+The system backs up two critical components:
+
+- **Database Backups**: Complete MySQL/MariaDB database snapshots
+- **Media Backups**: All uploaded files (receipts, product images, payment receipts, etc.)
+
+<Warning>
+  All backups are encrypted with GPG for security. Store your GPG passphrase securely - without it, backups cannot be restored.
+</Warning>
+
+## Configuration
+
+### Settings (settings.py)
+
+Backup configuration from `bar_galileo/settings.py`:
+
+```python
+STORAGES = {
+    "dbbackup": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": str(BASE_DIR / "backups" / "backup_files" / "db"),
+        },
+    },
+    "mediabackup": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": str(BASE_DIR / "backups" / "backup_files" / "media"),
+        },
+    },
+}
+
+DBBACKUP_STORAGE = 'dbbackup'
+DBBACKUP_MEDIA_STORAGE = 'mediabackup'
+DBBACKUP_MEDIA_PATH = MEDIA_ROOT
+DBBACKUP_FILENAME_TEMPLATE = '{datetime}.psql'
+DBBACKUP_MEDIA_FILENAME_TEMPLATE = '{datetime}.media.zip'
+DBBACKUP_ENCRYPTION = True
+DBBACKUP_GPG_RECIPIENT = 'bargalileo07@gmail.com'
+DBBACKUP_CLEANUP_KEEP = 10
+DBBACKUP_CLEANUP_KEEP_MEDIA = 10
+DBBACKUP_COMPRESS = True
+DBBACKUP_COMPRESSION_LEVEL = 6
+```
+
+### File Structure
+
+Backups are stored in:
+
+```
+bar_galileo/
+└── backups/
+    └── backup_files/
+        ├── db/                    # Database backups
+        │   └── 2025-10-20-212832.psql.gpg
+        └── media/                 # Media backups
+            └── 2025-10-20-213045.media.zip.gpg
+```
+
+## GPG Encryption Setup
+
+### Initial Setup
+
+<Steps>
+  <Step title="Generate GPG Key">
+    Create a GPG keypair for encryption:
+    ```bash
+    gpg --full-generate-key
+    ```
+    - Choose RSA and RSA (default)
+    - Key size: 4096 bits
+    - Expiration: 3 years or custom
+    - Name: Bar Galileo Backups
+    - Email: bargalileo07@gmail.com
+  </Step>
+  <Step title="Verify Key Creation">
+    List keys to confirm:
+    ```bash
+    gpg --list-keys
+    ```
+    Look for the key with email `bargalileo07@gmail.com`
+  </Step>
+  <Step title="Update Settings">
+    Ensure `DBBACKUP_GPG_RECIPIENT` in settings.py matches the email used
+  </Step>
+  <Step title="Test Encryption">
+    Create a test backup to verify GPG is working:
+    ```bash
+    python manage.py dbbackup --encrypt
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  GPG key details: RSA 4096, expires 2028-10-19, ID: E83D59F6FA84D04B
+</Info>
+
+### Exporting the GPG Key
+
+For backup recovery on another server:
+
+```bash
+# Export public key
+gpg --export -a "bargalileo07@gmail.com" > public.key
+
+# Export private key (KEEP SECURE!)
+gpg --export-secret-keys -a "bargalileo07@gmail.com" > private.key
+```
+
+<Warning>
+  Store the private key in a secure location (password manager, encrypted drive). Without it, you cannot decrypt backups.
+</Warning>
+
+## Creating Backups
+
+### Web Interface (Recommended)
+
+<Steps>
+  <Step title="Access Backup Module">
+    Navigate to **Backups** > **Backup List**
+  </Step>
+  <Step title="Choose Backup Type">
+    Click one of the action buttons:
+    - **Create Complete Backup**: Database + Media
+    - **Create DB Backup**: Database only
+    - **Create Media Backup**: Media files only
+  </Step>
+  <Step title="Wait for Completion">
+    The system processes the backup (may take 1-5 minutes)
+  </Step>
+  <Step title="Verify Creation">
+    New backup appears in the list with filename, date, and size
+  </Step>
+</Steps>
+
+### Command Line
+
+For manual or cron-based backups:
+
+<Accordion title="Database Backup">
+  ```bash
+  # Create encrypted database backup
+  python manage.py dbbackup --encrypt
+
+  # With cleanup (keep only 10 most recent)
+  python manage.py dbbackup --encrypt --clean
+  ```
+</Accordion>
+
+<Accordion title="Media Backup">
+  ```bash
+  # Create encrypted media backup
+  python manage.py mediabackup --encrypt
+
+  # With cleanup
+  python manage.py mediabackup --encrypt --clean
+  ```
+</Accordion>
+
+<Accordion title="Complete Backup (Custom Command)">
+  ```bash
+  # Database + Media in one command
+  python manage.py crear_backup_completo
+
+  # Database only
+  python manage.py crear_backup_completo --sin-media
+
+  # Media only
+  python manage.py crear_backup_completo --sin-db
+  ```
+</Accordion>
+
+<Note>
+  The custom command `crear_backup_completo` handles both backup types and solves issues with django-dbbackup's encryption in version 5.0.0.
+</Note>
+
+## Managing Backups
+
+### Viewing Backups
+
+The backup list page shows:
+
+- **Database Backups**:
+  - Filename (format: `YYYY-MM-DD-HHMMSS.psql.gpg`)
+  - Creation date and time
+  - File size (KB/MB)
+  - Download button
+  - Delete button
+
+- **Media Backups**:
+  - Filename (format: `YYYY-MM-DD-HHMMSS.media.zip.gpg`)
+  - Creation date and time
+  - File size (MB)
+  - Download button
+  - Delete button
+
+- **Statistics**:
+  - Total DB backups count
+  - Total media backups count
+  - Total storage used (MB)
+
+### Downloading Backups
+
+<Steps>
+  <Step title="Navigate to Backup List">
+    Go to **Backups** > **Backup List**
+  </Step>
+  <Step title="Select Backup">
+    Find the backup you want to download
+  </Step>
+  <Step title="Click Download">
+    Click the download icon/button for the backup
+  </Step>
+  <Step title="Save Securely">
+    Store the downloaded file in a secure, off-site location
+  </Step>
+</Steps>
+
+<Info>
+  Downloaded backups are encrypted. You'll need the GPG private key to decrypt them.
+</Info>
+
+### Deleting Old Backups
+
+<Steps>
+  <Step title="Review Backup List">
+    Identify outdated backups to remove
+  </Step>
+  <Step title="Click Delete">
+    Click the delete button for the backup
+  </Step>
+  <Step title="Confirm Deletion">
+    Confirm in the dialog (this action cannot be undone)
+  </Step>
+</Steps>
+
+<Warning>
+  Deleted backups cannot be recovered. Ensure you have off-site copies before deleting local backups.
+</Warning>
+
+## Restoring Backups
+
+### Database Restore
+
+<Warning>
+  Restoring a database backup **overwrites all current data**. Create a backup of the current state first!
+</Warning>
+
+<Steps>
+  <Step title="Create Current Backup">
+    Before restoring, backup current data:
+    ```bash
+    python manage.py dbbackup --encrypt
+    ```
+  </Step>
+  <Step title="Restore from Web Interface">
+    - Navigate to **Backups** > **Backup List**
+    - Find the backup to restore
+    - Click **Restore** button
+    - Confirm the action
+  </Step>
+  <Step title="Alternative: Command Line">
+    ```bash
+    # Restore latest backup
+    python manage.py dbrestore
+
+    # Restore specific backup
+    python manage.py dbrestore --input-filename=2025-10-20-212832.psql.gpg
+    ```
+  </Step>
+  <Step title="Restart Application">
+    Restart Django server to clear cached connections
+  </Step>
+  <Step title="Verify Data">
+    Log in and verify critical data was restored correctly
+  </Step>
+</Steps>
+
+### Media Restore
+
+<Steps>
+  <Step title="Stop Application">
+    Stop the Django server to prevent file conflicts
+  </Step>
+  <Step title="Restore from Web Interface">
+    - Navigate to **Backups** > **Backup List**
+    - Find the media backup to restore
+    - Click **Restore** button
+    - Confirm the action
+  </Step>
+  <Step title="Alternative: Command Line">
+    ```bash
+    # Restore latest media backup
+    python manage.py mediarestore
+
+    # Restore specific backup
+    python manage.py mediarestore --input-filename=2025-10-20-213045.media.zip.gpg
+    ```
+  </Step>
+  <Step title="Restart Application">
+    Start the Django server
+  </Step>
+  <Step title="Verify Files">
+    Check that uploaded files (receipts, images) are accessible
+  </Step>
+</Steps>
+
+## Permissions
+
+The backup module requires these permissions:
+
+- `backups.ver`: View backup list and statistics
+- `backups.crear`: Create new backups
+- `backups.editar`: Restore backups (modifies system)
+- `backups.eliminar`: Delete backup files
+
+<Note>
+  Assign backup permissions carefully. These operations affect system integrity and should be restricted to administrators.
+</Note>
+
+## Automation with Cron
+
+### Setting Up Automated Backups
+
+Create a cron job for daily backups:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add daily backup at 2 AM
+0 2 * * * cd /path/to/bar_galileo && /path/to/python manage.py crear_backup_completo >> /var/log/bar_galileo_backup.log 2>&1
+
+# Add weekly cleanup at 3 AM on Sundays
+0 3 * * 0 cd /path/to/bar_galileo && /path/to/python manage.py dbbackup --clean && /path/to/python manage.py mediabackup --clean
+```
+
+<Info>
+  Adjust paths and timing based on your server configuration and business hours (schedule during low-traffic periods).
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="3-2-1 Backup Rule">
+    Maintain:
+    - **3** copies of data (production + 2 backups)
+    - **2** different storage types (local + cloud)
+    - **1** off-site backup (cloud, remote server, or physical location)
+  </Accordion>
+  <Accordion title="Test Restores Regularly">
+    Perform quarterly restore tests on a staging environment to verify backup integrity and restore procedures.
+  </Accordion>
+  <Accordion title="Monitor Backup Size">
+    Track backup file sizes over time. Sudden increases may indicate data issues or excessive growth.
+  </Accordion>
+  <Accordion title="Automate Everything">
+    Use cron jobs for consistent, hands-off backup creation. Manual backups are easily forgotten.
+  </Accordion>
+  <Accordion title="Secure GPG Keys">
+    Store GPG private key in multiple secure locations (password manager, encrypted USB, safe deposit box).
+  </Accordion>
+  <Accordion title="Document Restore Process">
+    Maintain step-by-step restore documentation for disaster recovery scenarios.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="GPG Encryption Error">
+    **Symptom**: Backup fails with GPG-related error
+    
+    **Solution**:
+    1. Verify GPG key exists: `gpg --list-keys`
+    2. Ensure email matches `DBBACKUP_GPG_RECIPIENT`
+    3. Test GPG encryption: `echo "test" | gpg -e -r bargalileo07@gmail.com`
+  </Accordion>
+  <Accordion title="Backup Directory Not Writable">
+    **Symptom**: Permission denied when creating backup
+    
+    **Solution**:
+    ```bash
+    # Grant write permissions
+    sudo chown -R www-data:www-data /path/to/bar_galileo/backups/
+    sudo chmod -R 755 /path/to/bar_galileo/backups/
+    ```
+  </Accordion>
+  <Accordion title="Restore Fails with Database Lock">
+    **Symptom**: Cannot restore database - locked by active connections
+    
+    **Solution**:
+    1. Stop Django server
+    2. Close all database connections
+    3. Run restore command
+    4. Restart server
+  </Accordion>
+  <Accordion title="Media Backup Very Large">
+    **Symptom**: Media backup exceeds expected size
+    
+    **Solution**:
+    - Check for old/unused files in `MEDIA_ROOT`
+    - Consider excluding temporary files from backup
+    - Use compression level 9 for maximum compression
+  </Accordion>
+  <Accordion title="Cannot Decrypt Backup">
+    **Symptom**: GPG decryption fails during restore
+    
+    **Solution**:
+    1. Verify GPG private key is imported: `gpg --list-secret-keys`
+    2. If not, import: `gpg --import private.key`
+    3. Ensure passphrase is correct
+    4. Check key hasn't expired
+  </Accordion>
+</AccordionGroup>
+
+## Backup Statistics API
+
+The backup module provides a JSON API for statistics:
+
+### Endpoint
+
+```
+GET /backups/stats/
+```
+
+### Response Format
+
+```json
+{
+  "total_backups": 15,
+  "db_backups": {
+    "cantidad": 10,
+    "tamanio_total_mb": 45.32,
+    "tamanio_promedio_kb": 4638.72,
+    "ultimo_backup": "2025-10-20-212832.psql.gpg",
+    "ultima_fecha": "2025-10-20T21:28:32"
+  },
+  "media_backups": {
+    "cantidad": 5,
+    "tamanio_total_mb": 128.45,
+    "tamanio_promedio_mb": 25.69,
+    "ultimo_backup": "2025-10-20-213045.media.zip.gpg",
+    "ultima_fecha": "2025-10-20T21:30:45"
+  },
+  "total_size_mb": 173.77
+}
+```
+
+<Note>
+  Use this API endpoint for monitoring dashboards or alerting systems.
+</Note>
+
+## File Upload Feature
+
+The backup module supports uploading backup files:
+
+<Steps>
+  <Step title="Navigate to Backup List">
+    Go to **Backups** > **Backup List**
+  </Step>
+  <Step title="Click Upload">
+    Find the **Upload Backup** button
+  </Step>
+  <Step title="Select File">
+    Choose a `.psql.gpg` or `.media.zip.gpg` file from your computer
+  </Step>
+  <Step title="Upload">
+    Click **Upload** - file is validated and stored
+  </Step>
+</Steps>
+
+<Warning>
+  Only upload backups with correct extensions (`.psql.gpg` or `.media.zip.gpg`). Files must be GPG-encrypted.
+</Warning>
+
+---
+
+**Next Steps**: Learn about [Reports & Analytics](/operations/reports) or explore [Advanced Features](/advanced/notifications).

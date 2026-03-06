@@ -1,0 +1,322 @@
+---
+title: Payroll Management
+description: Manage employee records, salaries, bonuses, and payment tracking with comprehensive payroll features
+---
+
+The payroll module (nóminas) provides complete employee lifecycle management, from hiring to payment processing, including bonuses, contract tracking, and detailed payment history.
+
+## Employee Management
+
+### Employee Model Overview
+
+Each employee record includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user` | OneToOneField | Optional link to system user account |
+| `nombre` | CharField(100) | Full name |
+| `cargo` | CharField(100) | Job title/position |
+| `salario` | DecimalField(10,2) | Base salary |
+| `fecha_contratacion` | DateField | Hire date |
+| `estado` | CharField | Status (see below) |
+| `tipo_contrato` | CharField | Contract type (see below) |
+| `email` | EmailField | Contact email (optional) |
+| `telefono` | CharField(20) | Phone number (validated format) |
+| `direccion` | TextField | Home address (optional) |
+
+### Employee Status Options
+
+Employees can have one of five statuses:
+
+- **activo**: Currently working
+- **inactivo**: No longer employed
+- **vacaciones**: On vacation leave
+- **permiso**: Temporary leave of absence
+- **suspendido**: Suspended from duties
+
+### Contract Types
+
+Supported employment arrangements:
+
+- **tiempo_completo**: Full-time employment
+- **medio_tiempo**: Part-time employment
+- **temporal**: Temporary/seasonal contract
+- **por_proyecto**: Project-based contract
+
+<Note>
+  Employees can be linked to system user accounts for access control. If linked, their role is automatically pulled from the user's `userprofile.rol`.
+</Note>
+
+## Adding Employees
+
+<Steps>
+  <Step title="Navigate to Employees">
+    Go to **Nóminas** > **Empleados** > **Add Employee**
+  </Step>
+  <Step title="Enter Basic Information">
+    - Full name (`nombre`)
+    - Job title (`cargo`) - optional if linked to system user
+    - Base salary (`salario`)
+    - Hire date (`fecha_contratacion`)
+  </Step>
+  <Step title="Set Employment Details">
+    - **Status**: Select from `activo`, `inactivo`, etc.
+    - **Contract Type**: Choose the employment arrangement
+  </Step>
+  <Step title="Add Contact Info">
+    - Email (optional)
+    - Phone (format: +999999999)
+    - Address (optional)
+  </Step>
+  <Step title="Link User Account (Optional)">
+    If this employee needs system access, link their user account. This syncs their role automatically.
+  </Step>
+  <Step title="Save">
+    The employee is created with timestamps for auditing
+  </Step>
+</Steps>
+
+## Managing Bonuses (Bonificaciones)
+
+Bonuses are additional recurring or one-time payments beyond base salary.
+
+### Bonus Structure
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `empleado` | ForeignKey | Associated employee |
+| `nombre` | CharField(100) | Bonus name (e.g., "Performance Bonus") |
+| `monto` | DecimalField(10,2) | Bonus amount |
+| `recurrente` | BooleanField | Recurring monthly bonus? |
+| `fecha_inicio` | DateField | Start date |
+| `fecha_fin` | DateField | End date (optional for ongoing) |
+| `activa` | BooleanField | Is bonus currently active? |
+| `created_by` | ForeignKey | User who created the bonus |
+| `modified_by` | ForeignKey | User who last modified it |
+
+### Adding a Bonus
+
+<Steps>
+  <Step title="Select Employee">
+    Navigate to the employee's detail page
+  </Step>
+  <Step title="Add Bonificación">
+    Click **Add Bonus** or go to **Bonificaciones** > **Add**
+  </Step>
+  <Step title="Define Bonus Details">
+    - **Name**: Descriptive title (e.g., "Sales Commission")
+    - **Amount**: Bonus value
+    - **Recurring**: Check if this bonus applies every pay period
+    - **Start Date**: When the bonus begins
+    - **End Date**: Optional - leave blank for ongoing bonuses
+  </Step>
+  <Step title="Activate">
+    Ensure **Active** is checked to include in salary calculations
+  </Step>
+  <Step title="Save">
+    The bonus is tracked with creation/modification audit fields
+  </Step>
+</Steps>
+
+<Info>
+  The `esta_vigente` property automatically checks if a bonus is currently valid based on dates and active status.
+</Info>
+
+### Calculating Total Salary
+
+The employee model provides a method to calculate total compensation:
+
+```python
+def get_salario_total(self):
+    """Base salary + all active bonuses"""
+    return self.salario + sum(bonificacion.monto for bonificacion in self.bonificaciones.all())
+```
+
+## Payment Tracking (Pagos)
+
+Record all payments made to employees:
+
+### Payment Types
+
+- **salario**: Regular salary payment
+- **bono**: Bonus payment
+- **vacaciones**: Vacation pay
+- **liquidacion**: Final settlement payment
+- **otro**: Other payment types
+
+### Recording Payments
+
+<Steps>
+  <Step title="Navigate to Payments">
+    Go to **Nóminas** > **Pagos** > **Add Payment**
+  </Step>
+  <Step title="Select Employee">
+    Choose the employee receiving payment
+  </Step>
+  <Step title="Enter Payment Details">
+    - **Date**: Payment date (defaults to today)
+    - **Amount**: Payment amount
+    - **Type**: Select payment type
+    - **Description**: Optional notes
+  </Step>
+  <Step title="Upload Receipt (Optional)">
+    Attach payment receipt or proof (stored in `nominas/comprobantes/`)
+  </Step>
+  <Step title="Save">
+    Payment is recorded with audit trail (created_by, modified_by)
+  </Step>
+</Steps>
+
+### Payment Model
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `empleado` | ForeignKey | Employee receiving payment |
+| `fecha_pago` | DateField | Payment date |
+| `monto` | DecimalField(10,2) | Payment amount |
+| `tipo` | CharField | Payment type (choices above) |
+| `descripcion` | TextField | Optional details |
+| `comprobante` | FileField | Payment receipt file |
+| `created_by` | ForeignKey | User who recorded payment |
+| `modified_by` | ForeignKey | User who last modified |
+| `fecha_creacion` | DateTimeField | Created timestamp |
+| `fecha_modificacion` | DateTimeField | Last updated timestamp |
+
+<Warning>
+  Payments are ordered by `fecha_pago` descending. Always verify payment dates are correct for accurate reporting.
+</Warning>
+
+## Employee Properties
+
+The employee model includes helpful properties:
+
+### `antiguedad` (Seniority)
+
+Automatically calculates years of service:
+
+```python
+@property
+def antiguedad(self):
+    """Returns years since hire date"""
+    today = timezone.now().date()
+    return (today - self.fecha_contratacion).days // 365
+```
+
+### `tiene_usuario` (Has User)
+
+Checks if employee has a linked system account:
+
+```python
+@property
+def tiene_usuario(self):
+    return self.user is not None
+```
+
+### `usuario_activo` (Active User)
+
+Verifies if linked user account is active:
+
+```python
+@property
+def usuario_activo(self):
+    return self.user and self.user.is_active if self.tiene_usuario else False
+```
+
+## Payroll Reports
+
+Generate comprehensive payroll reports:
+
+### Report Contents
+
+- Total active employees
+- Total salary commitments
+- Distribution by contract type
+- Detailed employee list with:
+  - Name, position, contract type
+  - Base salary
+  - Years of service
+
+### Generating Payroll Reports
+
+<Steps>
+  <Step title="Access Reports">
+    Navigate to **Reports** > **Create Report**
+  </Step>
+  <Step title="Select Payroll Type">
+    Choose **Type**: Nóminas (Payroll)
+  </Step>
+  <Step title="Set Date Range">
+    Define the reporting period
+  </Step>
+  <Step title="Choose Format">
+    Select PDF for official documents or Excel for analysis
+  </Step>
+  <Step title="Generate and Export">
+    Process the report and download in your selected format
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Regular Status Updates">
+    Update employee status promptly when they go on leave, vacation, or are suspended to ensure accurate payroll calculations.
+  </Accordion>
+  <Accordion title="Document All Payments">
+    Always attach payment receipts (`comprobante`) for audit compliance and to resolve disputes.
+  </Accordion>
+  <Accordion title="Review Bonuses Quarterly">
+    Check active bonuses every quarter to deactivate expired ones and ensure current bonuses are accurate.
+  </Accordion>
+  <Accordion title="Link System Users">
+    Connect employee records to user accounts for seamless permission management and role synchronization.
+  </Accordion>
+  <Accordion title="Track Seniority">
+    Use the `antiguedad` property for annual reviews, raises, and recognition programs.
+  </Accordion>
+</AccordionGroup>
+
+## Validation Rules
+
+<Warning>
+  **Bonus Date Validation**: The system prevents creating bonuses where `fecha_fin` is before `fecha_inicio`. Always verify dates before saving.
+</Warning>
+
+### Phone Number Format
+
+Phone numbers must match the pattern: `+?1?\d{9,15}$`
+- Optional country code (+)
+- 9-15 digits
+- Example: +573222271308
+
+## Integration with Reports
+
+Payroll data integrates with the general reports module:
+
+- **Nominas Report**: Detailed employee and salary breakdown
+- **General Report**: Includes payroll as part of operational expenses
+
+<Info>
+  For financial analysis, payroll expenses can be compared against sales in the General Report type.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Bonus Not Included in Total Salary">
+    Verify the bonus is marked as `activa=True` and the date range is current. Use the `esta_vigente` property to check validity.
+  </Accordion>
+  <Accordion title="Cannot Link User Account">
+    Ensure the user account exists and is not already linked to another employee (OneToOne constraint).
+  </Accordion>
+  <Accordion title="Payment Not in Report">
+    Check that the payment date falls within the report period and that you've regenerated the report after adding payments.
+  </Accordion>
+  <Accordion title="Phone Validation Error">
+    Use international format with country code (e.g., +57 for Colombia). Ensure 9-15 digits total.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+**Next Steps**: Learn about [Expense Tracking](/operations/expenses) and [Reports](/operations/reports).

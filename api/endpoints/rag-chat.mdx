@@ -1,0 +1,780 @@
+---
+title: 'RAG Chat API'
+description: 'Upload documents, generate embeddings, and query with AI-powered RAG'
+---
+
+## Overview
+
+The RAG (Retrieval-Augmented Generation) Chat API enables intelligent question-answering over uploaded documents. Documents are processed, chunked, embedded, and indexed for semantic search, then combined with Google Gemini AI for accurate responses.
+
+**Base Path:** `/rag-chat/`
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Document Upload" icon="cloud-arrow-up">
+    Upload PDF documents for indexing
+  </Card>
+  <Card title="Vector Search" icon="magnifying-glass">
+    Semantic similarity search using embeddings
+  </Card>
+  <Card title="AI Responses" icon="sparkles">
+    Google Gemini-powered contextual answers
+  </Card>
+  <Card title="Query History" icon="clock-rotate-left">
+    Track and retrieve past queries
+  </Card>
+</CardGroup>
+
+## Endpoints
+
+### Upload Document
+
+<Card title="POST /rag-chat/api/upload/" icon="file-arrow-up">
+  Upload and process a PDF document for RAG indexing
+</Card>
+
+**URL:** `/rag-chat/api/upload/`  
+**Method:** `POST`  
+**Content-Type:** `multipart/form-data`  
+**Auth:** Optional (user tracked if authenticated)
+
+Implemented in `rag_chat/views.py:105` as `UploadDocumentView`.
+
+<ParamField body="file" type="file" required>
+  PDF file to upload (must have .pdf extension)
+</ParamField>
+
+<ParamField body="title" type="string">
+  Display name for the document (defaults to filename)
+</ParamField>
+
+#### Processing Pipeline
+
+1. **Validation** - Checks file type (PDF only)
+2. **Database Record** - Creates `DocumentCollection` with status `processing`
+3. **Text Extraction** - Extracts text from PDF pages
+4. **Chunking** - Splits text into 500-char chunks with 50-char overlap
+5. **Embeddings** - Generates vector embeddings for each chunk
+6. **Indexing** - Stores chunks and embeddings in database
+7. **Status Update** - Sets status to `indexed` or `error`
+
+#### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-domain.com/rag-chat/api/upload/ \
+  -F "file=@/path/to/manual.pdf" \
+  -F "title=User Manual v2.0"
+```
+
+```python Python
+import requests
+
+with open('manual.pdf', 'rb') as f:
+    response = requests.post(
+        'https://your-domain.com/rag-chat/api/upload/',
+        files={'file': f},
+        data={'title': 'User Manual v2.0'}
+    )
+
+print(response.json())
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+formData.append('title', 'User Manual v2.0');
+
+fetch('https://your-domain.com/rag-chat/api/upload/', {
+  method: 'POST',
+  body: formData
+})
+.then(res => res.json())
+.then(data => console.log(data));
+```
+</CodeGroup>
+
+#### Success Response (201)
+
+<ResponseField name="collection_id" type="integer" required>
+  Unique identifier for the uploaded document collection
+</ResponseField>
+
+<ResponseField name="title" type="string" required>
+  Document title
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Processing status: `indexed`, `processing`, `pending`, or `error`
+</ResponseField>
+
+<ResponseField name="chunk_count" type="integer" required>
+  Number of text chunks created from the document
+</ResponseField>
+
+<ResponseField name="page_count" type="integer" required>
+  Total pages in the PDF document
+</ResponseField>
+
+```json
+{
+  "collection_id": 3,
+  "title": "User Manual v2.0",
+  "status": "indexed",
+  "chunk_count": 45,
+  "page_count": 12
+}
+```
+
+#### Error Response (400)
+
+```json
+{
+  "error": "No se envió archivo"
+}
+```
+
+```json
+{
+  "error": "Solo PDFs soportados"
+}
+```
+
+#### Error Response (500)
+
+```json
+{
+  "error": "Failed to extract text from PDF"
+}
+```
+
+---
+
+### Query RAG
+
+<Card title="POST /rag-chat/api/query/" icon="message-question">
+  Ask a question and get an AI-powered answer based on uploaded documents
+</Card>
+
+**URL:** `/rag-chat/api/query/`  
+**Method:** `POST`  
+**Content-Type:** `application/json`  
+**Auth:** Optional (query saved if authenticated)
+
+Implemented in `rag_chat/views.py:190` as `QueryRAGView`.
+
+<ParamField body="collection_id" type="integer" required>
+  ID of the document collection to query
+</ParamField>
+
+<ParamField body="query" type="string" required>
+  User's question (cannot be empty)
+</ParamField>
+
+<ParamField body="top_k" type="integer" default="3">
+  Number of relevant chunks to retrieve (1-10 recommended)
+</ParamField>
+
+#### How It Works
+
+1. **Query Embedding** - Converts user question to vector
+2. **Similarity Search** - Finds top-k most relevant document chunks
+3. **Context Building** - Constructs prompt with relevant passages
+4. **AI Generation** - Calls Google Gemini API with context
+5. **Response** - Returns answer with source citations
+
+#### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-domain.com/rag-chat/api/query/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "collection_id": 3,
+    "query": "How do I reset my password?",
+    "top_k": 3
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-domain.com/rag-chat/api/query/',
+    json={
+        'collection_id': 3,
+        'query': 'How do I reset my password?',
+        'top_k': 3
+    }
+)
+
+data = response.json()
+print(f"Answer: {data['answer']}")
+print(f"Sources: {data['sources']}")
+```
+
+```javascript JavaScript
+fetch('https://your-domain.com/rag-chat/api/query/', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({
+    collection_id: 3,
+    query: 'How do I reset my password?',
+    top_k: 3
+  })
+})
+.then(res => res.json())
+.then(data => {
+  console.log('Answer:', data.answer);
+  console.log('Sources:', data.sources);
+});
+```
+</CodeGroup>
+
+#### Success Response (200)
+
+<ResponseField name="answer" type="string" required>
+  AI-generated answer based on document context
+</ResponseField>
+
+<ResponseField name="sources" type="array" required>
+  Array of source chunks used to generate the answer
+</ResponseField>
+
+<ResponseField name="sources[].content" type="string">
+  Excerpt from the relevant document chunk (truncated to 200 chars)
+</ResponseField>
+
+<ResponseField name="sources[].page" type="array">
+  Page number(s) where this content appears
+</ResponseField>
+
+<ResponseField name="sources[].similarity" type="number">
+  Similarity score (0-1) indicating relevance
+</ResponseField>
+
+<ResponseField name="collection_title" type="string" required>
+  Title of the document collection queried
+</ResponseField>
+
+```json
+{
+  "answer": "To reset your password, go to the Settings page and click 'Reset Password'. You will receive an email with instructions to create a new password.",
+  "sources": [
+    {
+      "content": "[Página 5] Password Reset: Navigate to Settings > Security > Reset Password. An email will be sent to your registered address...",
+      "page": [5],
+      "similarity": 0.892
+    },
+    {
+      "content": "[Página 12] For security purposes, password reset links expire after 24 hours. If your link has expired, request a new one...",
+      "page": [12],
+      "similarity": 0.754
+    },
+    {
+      "content": "[Página 3] Account security features include two-factor authentication and password reset functionality...",
+      "page": [3],
+      "similarity": 0.698
+    }
+  ],
+  "collection_title": "User Manual v2.0"
+}
+```
+
+#### Error Responses
+
+**400 - Bad Request**
+```json
+{
+  "error": "Query vacío"
+}
+```
+
+```json
+{
+  "error": "collection_id requerido"
+}
+```
+
+```json
+{
+  "error": "Colección no lista (status: processing)"
+}
+```
+
+**404 - Not Found**
+```json
+{
+  "error": "Colección no encontrada"
+}
+```
+
+**500 - Server Error**
+```json
+{
+  "error": "Error API: 500 - API key invalid"
+}
+```
+
+<Warning>
+Requires `GOOGLE_API_KEY` environment variable. See `rag_chat/views.py:40` for implementation.
+</Warning>
+
+---
+
+### List Documents
+
+<Card title="GET /rag-chat/api/documents/" icon="list">
+  Retrieve all uploaded document collections
+</Card>
+
+**URL:** `/rag-chat/api/documents/`  
+**Method:** `GET`  
+**Auth:** Optional (returns all documents)
+
+Implemented in `rag_chat/views.py:272` as `ListDocumentsView`.
+
+#### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-domain.com/rag-chat/api/documents/
+```
+
+```python Python
+import requests
+
+response = requests.get('https://your-domain.com/rag-chat/api/documents/')
+documents = response.json()['documents']
+
+for doc in documents:
+    print(f"{doc['title']} - {doc['status']}")
+```
+
+```javascript JavaScript
+fetch('https://your-domain.com/rag-chat/api/documents/')
+  .then(res => res.json())
+  .then(data => {
+    data.documents.forEach(doc => {
+      console.log(`${doc.title} - ${doc.status}`);
+    });
+  });
+```
+</CodeGroup>
+
+#### Success Response (200)
+
+<ResponseField name="documents" type="array" required>
+  Array of document collection objects
+</ResponseField>
+
+<ResponseField name="documents[].id" type="integer">
+  Document collection ID
+</ResponseField>
+
+<ResponseField name="documents[].title" type="string">
+  Document title
+</ResponseField>
+
+<ResponseField name="documents[].status" type="string">
+  Processing status: `pending`, `processing`, `indexed`, or `error`
+</ResponseField>
+
+<ResponseField name="documents[].page_count" type="integer">
+  Number of pages in the document
+</ResponseField>
+
+<ResponseField name="documents[].chunk_count" type="integer">
+  Number of indexed chunks
+</ResponseField>
+
+<ResponseField name="documents[].created_at" type="string">
+  ISO 8601 timestamp of upload
+</ResponseField>
+
+<ResponseField name="documents[].error" type="string|null">
+  Error message if status is `error`
+</ResponseField>
+
+```json
+{
+  "documents": [
+    {
+      "id": 3,
+      "title": "User Manual v2.0",
+      "status": "indexed",
+      "page_count": 12,
+      "chunk_count": 45,
+      "created_at": "2026-03-06T14:30:00Z",
+      "error": null
+    },
+    {
+      "id": 2,
+      "title": "API Documentation",
+      "status": "processing",
+      "page_count": 8,
+      "chunk_count": 0,
+      "created_at": "2026-03-05T10:15:00Z",
+      "error": null
+    },
+    {
+      "id": 1,
+      "title": "Old Manual",
+      "status": "error",
+      "page_count": 0,
+      "chunk_count": 0,
+      "created_at": "2026-03-01T08:00:00Z",
+      "error": "Failed to extract text from PDF"
+    }
+  ]
+}
+```
+
+---
+
+### Delete Document
+
+<Card title="DELETE /rag-chat/api/document/<int:collection_id>/" icon="trash">
+  Remove a document collection and all associated chunks
+</Card>
+
+**URL:** `/rag-chat/api/document/<collection_id>/`  
+**Method:** `DELETE`  
+**Auth:** Optional
+
+Implemented in `rag_chat/views.py:300` as `DeleteDocumentView`.
+
+<ParamField path="collection_id" type="integer" required>
+  ID of the document collection to delete
+</ParamField>
+
+<Note>
+Deleting a collection cascades to delete all associated `DocumentChunk` records and removes the physical file from storage.
+</Note>
+
+#### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://your-domain.com/rag-chat/api/document/3/
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+    'https://your-domain.com/rag-chat/api/document/3/'
+)
+
+if response.status_code == 200:
+    print(response.json()['message'])
+```
+
+```javascript JavaScript
+fetch('https://your-domain.com/rag-chat/api/document/3/', {
+  method: 'DELETE'
+})
+.then(res => res.json())
+.then(data => console.log(data.message));
+```
+</CodeGroup>
+
+#### Success Response (200)
+
+<ResponseField name="message" type="string" required>
+  Confirmation message
+</ResponseField>
+
+```json
+{
+  "message": "Documento \"User Manual v2.0\" eliminado correctamente"
+}
+```
+
+#### Error Responses
+
+**404 - Not Found**
+```json
+{
+  "error": "Documento no encontrado"
+}
+```
+
+**500 - Server Error**
+```json
+{
+  "error": "Failed to delete file from storage"
+}
+```
+
+---
+
+### Query History
+
+<Card title="GET /rag-chat/api/history/" icon="clock-rotate-left">
+  Retrieve past RAG queries (for all users or current user)
+</Card>
+
+**URL:** `/rag-chat/api/history/`  
+**Method:** `GET`  
+**Auth:** Optional (returns all history)
+
+Implemented in `rag_chat/views.py:333` as `QueryHistoryView`.
+
+<ParamField query="limit" type="integer" default="20">
+  Maximum number of queries to return
+</ParamField>
+
+#### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-domain.com/rag-chat/api/history/?limit=10"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://your-domain.com/rag-chat/api/history/',
+    params={'limit': 10}
+)
+
+history = response.json()['history']
+for query in history:
+    print(f"Q: {query['query']}")
+    print(f"A: {query['response'][:100]}...")
+```
+
+```javascript JavaScript
+fetch('https://your-domain.com/rag-chat/api/history/?limit=10')
+  .then(res => res.json())
+  .then(data => {
+    data.history.forEach(item => {
+      console.log('Q:', item.query);
+      console.log('A:', item.response.substring(0, 100) + '...');
+    });
+  });
+```
+</CodeGroup>
+
+#### Success Response (200)
+
+<ResponseField name="history" type="array" required>
+  Array of past query objects
+</ResponseField>
+
+<ResponseField name="history[].id" type="integer">
+  Query record ID
+</ResponseField>
+
+<ResponseField name="history[].query" type="string">
+  User's original question
+</ResponseField>
+
+<ResponseField name="history[].response" type="string">
+  AI-generated response (truncated to 200 chars)
+</ResponseField>
+
+<ResponseField name="history[].collection" type="string|null">
+  Title of the document collection queried
+</ResponseField>
+
+<ResponseField name="history[].created_at" type="string">
+  ISO 8601 timestamp of the query
+</ResponseField>
+
+```json
+{
+  "history": [
+    {
+      "id": 42,
+      "query": "How do I reset my password?",
+      "response": "To reset your password, go to the Settings page and click 'Reset Password'. You will receive an email with instructions to create a new password...",
+      "collection": "User Manual v2.0",
+      "created_at": "2026-03-06T14:35:22Z"
+    },
+    {
+      "id": 41,
+      "query": "What are the system requirements?",
+      "response": "The system requires Python 3.8+, Django 5.2+, MySQL database, and at least 2GB RAM for optimal performance...",
+      "collection": "API Documentation",
+      "created_at": "2026-03-06T13:20:15Z"
+    }
+  ]
+}
+```
+
+---
+
+## Data Models
+
+### DocumentCollection
+
+Defined in `rag_chat/models.py:6`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Integer | Primary key |
+| `user` | ForeignKey | Uploader (nullable) |
+| `title` | String | Document name |
+| `file` | FileField | PDF file path |
+| `file_type` | String | File format (default: `pdf`) |
+| `page_count` | Integer | Total pages |
+| `chunk_count` | Integer | Total chunks indexed |
+| `status` | String | `pending`, `processing`, `indexed`, `error` |
+| `error_message` | Text | Error details |
+| `created_at` | DateTime | Upload timestamp |
+| `updated_at` | DateTime | Last modification |
+
+### DocumentChunk
+
+Defined in `rag_chat/models.py:37`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Integer | Primary key |
+| `collection` | ForeignKey | Parent document |
+| `chunk_index` | Integer | Position in document |
+| `content` | Text | Chunk text |
+| `embedding` | JSONField | Vector embedding (list of floats) |
+| `metadata` | JSONField | Page numbers, sections, etc. |
+| `created_at` | DateTime | Creation timestamp |
+
+### RAGQuery
+
+Defined in `rag_chat/models.py:74`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Integer | Primary key |
+| `user` | ForeignKey | Querying user |
+| `collection` | ForeignKey | Document queried |
+| `query` | Text | User question |
+| `response` | Text | AI-generated answer |
+| `chunks_used` | JSONField | Array of chunk IDs |
+| `created_at` | DateTime | Query timestamp |
+
+---
+
+## Technical Details
+
+### Embeddings Generation
+
+The system uses sentence transformers for generating embeddings. See `rag_chat/embeddings.py` for implementation.
+
+```python
+from .embeddings import get_embedding_generator
+
+generator = get_embedding_generator()
+texts = ["example text chunk"]
+embeddings = generator.encode_documents(texts, show_progress=True)
+```
+
+### Vector Search
+
+Database-based cosine similarity search via `DatabaseVectorStore` in `rag_chat/vector_store.py`:
+
+```python
+from .vector_store import DatabaseVectorStore
+
+vector_store = DatabaseVectorStore(collection_id, dimension=384)
+results = vector_store.search(query_vector, k=3)
+```
+
+### Google Gemini Integration
+
+Implemented in `rag_chat/views.py:27` as `_call_google_api_with_context()`.
+
+**Model:** `gemini-2.0-flash`  
+**Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
+
+<Warning>
+Requires `GOOGLE_API_KEY` environment variable. Calls have a 30-second timeout.
+</Warning>
+
+### Document Processing
+
+**Chunk Size:** 500 characters  
+**Overlap:** 50 characters  
+**Supported Formats:** PDF only
+
+See `rag_chat/document_loader.py` for the `DocumentLoader` implementation.
+
+---
+
+## Example Workflow
+
+<Steps>
+  <Step title="Upload Document">
+    ```bash
+    curl -X POST /rag-chat/api/upload/ -F "file=@manual.pdf"
+    ```
+    Receive `collection_id: 3`
+  </Step>
+  
+  <Step title="Check Status">
+    ```bash
+    curl /rag-chat/api/documents/
+    ```
+    Verify status is `indexed`
+  </Step>
+  
+  <Step title="Query Document">
+    ```bash
+    curl -X POST /rag-chat/api/query/ \
+      -H "Content-Type: application/json" \
+      -d '{"collection_id": 3, "query": "How do I...?"}'
+    ```
+    Receive answer with sources
+  </Step>
+  
+  <Step title="View History">
+    ```bash
+    curl /rag-chat/api/history/?limit=5
+    ```
+    See past queries and responses
+  </Step>
+</Steps>
+
+---
+
+## Error Handling
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="'GOOGLE_API_KEY no configurada'">
+    **Cause:** Missing environment variable  
+    **Solution:** Set `GOOGLE_API_KEY` in `.env` or environment
+  </Accordion>
+  
+  <Accordion title="'Solo PDFs soportados'">
+    **Cause:** Uploaded file is not a PDF  
+    **Solution:** Convert document to PDF format
+  </Accordion>
+  
+  <Accordion title="'Colección no lista (status: processing)'">
+    **Cause:** Document still being indexed  
+    **Solution:** Wait for processing to complete, then retry
+  </Accordion>
+  
+  <Accordion title="'No encontré información relevante'">
+    **Cause:** No chunks matched the query above threshold  
+    **Solution:** Rephrase query or upload more comprehensive documents
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="shield-halved" href="/api/endpoints/authentication">
+    Learn about user authentication
+  </Card>
+  <Card title="API Overview" icon="book-open" href="/api/endpoints/overview">
+    Explore other API endpoints
+  </Card>
+</CardGroup>

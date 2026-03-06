@@ -1,0 +1,465 @@
+---
+title: 'Users & Role Management'
+description: 'Control user access and permissions with role-based security'
+icon: 'user-shield'
+---
+
+## Overview
+
+Bar Galileo uses a comprehensive role-based access control (RBAC) system to manage user permissions. Control who can access which features and perform which actions throughout the system.
+
+<CardGroup cols={2}>
+  <Card title="Role-Based Access" icon="shield-halved">
+    Define roles with specific permissions for different staff levels
+  </Card>
+  <Card title="User Profiles" icon="id-card">
+    Extended user information including personal and emergency contacts
+  </Card>
+  <Card title="Module Permissions" icon="key">
+    Granular control over access to different system modules
+  </Card>
+  <Card title="Social Authentication" icon="right-to-bracket">
+    Sign in with Google using django-allauth integration
+  </Card>
+</CardGroup>
+
+## User Management
+
+### User Accounts
+
+Bar Galileo uses Django's built-in User model, providing:
+
+- **username**: Unique login identifier
+- **email**: Email address for communications
+- **password**: Securely hashed password
+- **first_name** and **last_name**: User's full name
+- **is_active**: Whether account is enabled
+- **is_staff**: Admin panel access
+- **is_superuser**: Full system access
+
+### User Profiles
+
+Each user has an extended profile with additional information:
+
+- **nombre**: Full name
+- **cedula**: National ID or employee number
+- **telefono**: Contact phone number
+- **direccion**: Address
+- **avatar**: Profile picture (uploaded to `img/avatar/`)
+
+<Steps>
+  <Step title="Create User Account">
+    Set up the base Django user with username, email, and password.
+  </Step>
+  
+  <Step title="Complete Profile">
+    Add profile details including personal information and contact details.
+  </Step>
+  
+  <Step title="Assign Role">
+    Link the user to a role that defines their permissions.
+  </Step>
+  
+  <Step title="Upload Avatar">
+    Optionally add a profile picture for easy identification.
+  </Step>
+</Steps>
+
+### Emergency Contacts
+
+For staff safety, each user profile can have emergency contact information:
+
+- **nombre**: Emergency contact's name
+- **relacion**: Relationship (spouse, parent, sibling, etc.)
+- **telefono**: Primary phone number
+- **telefono_alt**: Alternative phone number
+- **sangre**: Blood type
+- **alergias**: Known allergies or medical conditions
+
+<Note>
+  Emergency contact information is private and should only be accessible to authorized management personnel.
+</Note>
+
+## Role-Based Access Control
+
+### System Components
+
+The RBAC system consists of four key models:
+
+1. **Module**: Areas of the system (e.g., "Products", "Orders", "Reports")
+2. **Action**: What can be done (e.g., "View", "Create", "Edit", "Delete")
+3. **Role**: Job position or responsibility level (e.g., "Manager", "Waiter", "Chef")
+4. **RolePermission**: Links roles to specific module-action combinations
+
+### How It Works
+
+<Steps>
+  <Step title="Define Modules">
+    Create modules for each major system area:
+    - Products & Inventory
+    - Tables & Orders
+    - Invoicing
+    - Reports
+    - User Management
+    - Settings
+  </Step>
+  
+  <Step title="Define Actions">
+    Create standard actions that can be performed:
+    - View: See information
+    - Create: Add new records
+    - Edit: Modify existing records
+    - Delete: Remove records
+    - Export: Download data
+  </Step>
+  
+  <Step title="Create Roles">
+    Define roles matching your staff structure:
+    - Owner/Administrator
+    - Manager
+    - Server/Waiter
+    - Chef/Kitchen Staff
+    - Host/Hostess
+  </Step>
+  
+  <Step title="Assign Permissions">
+    For each role, specify which actions they can perform on which modules by creating RolePermission records.
+  </Step>
+  
+  <Step title="Link Users to Roles">
+    Assign each user a role through their UserProfile.
+  </Step>
+</Steps>
+
+### Permission Checking
+
+The system uses a custom middleware (`PermissionMiddleware`) to check permissions:
+
+- Intercepts requests to protected views
+- Checks user's role and associated permissions
+- Allows or denies access based on module-action requirements
+- Redirects unauthorized users appropriately
+
+<Warning>
+  Users without an assigned role will have no permissions by default. Always assign a role to new users.
+</Warning>
+
+## Common Role Configurations
+
+### Administrator/Owner
+
+<Accordion title="Full System Access">
+  Administrators typically have all permissions:
+  
+  **All Modules:**
+  - View, Create, Edit, Delete
+  
+  **Typical Responsibilities:**
+  - User management
+  - System configuration
+  - Financial reports
+  - Backup management
+  - Role and permission management
+</Accordion>
+
+### Manager
+
+<Accordion title="Operational Management">
+  Managers need broad access but may not manage users:
+  
+  **Products Module:**
+  - View, Create, Edit (maybe not Delete)
+  
+  **Orders Module:**
+  - View, Create, Edit, Delete
+  
+  **Invoicing Module:**
+  - View, Create
+  
+  **Reports Module:**
+  - View, Export
+  
+  **Users Module:**
+  - View only
+</Accordion>
+
+### Server/Waiter
+
+<Accordion title="Front-of-House Operations">
+  Servers need order management and limited product access:
+  
+  **Products Module:**
+  - View only (see what's available)
+  
+  **Orders Module:**
+  - View, Create, Edit (their own orders)
+  
+  **Invoicing Module:**
+  - View, Create (to generate bills)
+  
+  **Tables Module:**
+  - View, Edit (to update table status)
+  
+  **Reports Module:**
+  - View (their own sales)
+</Accordion>
+
+### Kitchen Staff
+
+<Accordion title="Order Preparation Focus">
+  Kitchen staff need to see orders but not financial data:
+  
+  **Orders Module:**
+  - View (to see what to prepare)
+  - Edit (to mark items as completed)
+  
+  **Products Module:**
+  - View (to check ingredients/recipes)
+  
+  **Other Modules:**
+  - Generally no access to invoicing or reports
+</Accordion>
+
+### Host/Hostess
+
+<Accordion title="Table and Reservation Management">
+  Hosts manage tables and customer flow:
+  
+  **Tables Module:**
+  - View, Edit (to manage table status)
+  
+  **Orders Module:**
+  - View, Create (to start orders)
+  
+  **Products Module:**
+  - View (to answer customer questions)
+  
+  **Invoicing Module:**
+  - Generally no access
+</Accordion>
+
+## Authentication
+
+### Standard Login
+
+Bar Galileo uses django-allauth for authentication:
+
+- **Login URL**: `/accounts/login/`
+- **Custom form**: `CustomLoginForm` with captcha protection
+- **Redirect**: After login, users go to `/` (home page)
+- **Session management**: Secure session handling
+
+### Google OAuth
+
+Users can also sign in with Google:
+
+- **Provider**: Google OAuth configured in settings
+- **Scopes**: Profile and email
+- **PKCE**: Enabled for enhanced security
+- **Site ID**: Configured for django.contrib.sites
+
+<Steps>
+  <Step title="User Clicks 'Sign in with Google'">
+    OAuth flow begins, redirecting to Google.
+  </Step>
+  
+  <Step title="Google Authentication">
+    User signs in with their Google account and grants permissions.
+  </Step>
+  
+  <Step title="Account Creation/Link">
+    System creates new user or links to existing account based on email.
+  </Step>
+  
+  <Step title="Profile Setup">
+    First-time Google users may need to complete profile and be assigned a role.
+  </Step>
+</Steps>
+
+<Note>
+  Google OAuth requires configuration of client ID and secret in your environment variables and Google Cloud Console.
+</Note>
+
+### Email Management
+
+Users can manage multiple email addresses:
+
+- **Custom form**: `CustomAddEmailForm` for adding emails
+- **Verification**: Email verification process for new addresses
+- **Primary email**: Users can set primary email for communications
+
+## Admin Interface
+
+### Admin Redirect Middleware
+
+Bar Galileo includes custom middleware (`AdminRedirectMiddleware`) that:
+
+- Handles admin-specific routing
+- Manages staff user access to admin panel
+- Ensures proper authentication flow
+
+### Superuser vs Staff
+
+- **Superusers**: Full system access including Django admin
+- **Staff users**: Can access admin panel with limited permissions
+- **Regular users**: Application access only, no admin panel
+
+## Security Features
+
+### Password Security
+
+Bar Galileo enforces strong password standards:
+
+- **Similarity validation**: Password can't be too similar to user info
+- **Minimum length**: Enforced by validator
+- **Common password check**: Prevents common passwords
+- **Numeric validation**: Can't be entirely numeric
+
+### Session Security
+
+Production environments use enhanced security:
+
+- **SSL redirect**: Forces HTTPS
+- **Secure cookies**: Session and CSRF cookies require HTTPS
+- **HSTS**: HTTP Strict Transport Security enabled
+- **Referrer policy**: Strict origin when cross-origin
+
+<Warning>
+  These security features are automatically enabled in production (when DEBUG=False). Ensure your server supports HTTPS before deploying.
+</Warning>
+
+### CAPTCHA Protection
+
+Login forms include captcha protection:
+
+- **Simple captcha**: django-simple-captcha integration
+- **Configurable**: Adjust length, size, and font
+- **Bot prevention**: Reduces automated login attempts
+
+## User Management Workflows
+
+### Onboarding New Staff
+
+<Steps>
+  <Step title="Create Account">
+    Administrator creates new user account with username and temporary password.
+  </Step>
+  
+  <Step title="Set Up Profile">
+    Complete user profile with personal information, contact details, and photo.
+  </Step>
+  
+  <Step title="Add Emergency Contact">
+    Record emergency contact information for safety.
+  </Step>
+  
+  <Step title="Assign Role">
+    Link user to appropriate role based on job position.
+  </Step>
+  
+  <Step title="User First Login">
+    User logs in with temporary password and is prompted to change it.
+  </Step>
+  
+  <Step title="Training">
+    User receives training on their permitted features.
+  </Step>
+</Steps>
+
+### Changing User Roles
+
+<Steps>
+  <Step title="Review Current Permissions">
+    Check user's current role and what they can access.
+  </Step>
+  
+  <Step title="Update Role">
+    Change the role assignment in their UserProfile.
+  </Step>
+  
+  <Step title="Verify New Permissions">
+    Confirm user now has correct access to new modules.
+  </Step>
+  
+  <Step title="Notify User">
+    Inform user of their new permissions and any training needed.
+  </Step>
+</Steps>
+
+### Offboarding Staff
+
+<Steps>
+  <Step title="Deactivate Account">
+    Set user's `is_active` to False instead of deleting.
+  </Step>
+  
+  <Step title="Preserve Data">
+    Keep user account for historical records (orders, etc.).
+  </Step>
+  
+  <Step title="Update Permissions">
+    Optionally remove role assignment.
+  </Step>
+  
+  <Step title="Document Departure">
+    Note departure date and reason in user profile or separate records.
+  </Step>
+</Steps>
+
+<Note>
+  Never delete user accounts if they have associated orders or other data. Deactivate instead to preserve historical records.
+</Note>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Principle of Least Privilege">
+    Grant users only the permissions they need for their job:
+    
+    - Start with minimal permissions
+    - Add permissions as needed
+    - Regularly review and audit permissions
+    - Remove unnecessary permissions promptly
+    - Don't grant admin access unless required
+  </Accordion>
+  
+  <Accordion title="Regular Permission Audits">
+    Periodically review who has access to what:
+    
+    - Check all user role assignments
+    - Verify permissions match job responsibilities
+    - Remove permissions from users who changed positions
+    - Look for orphaned or inactive accounts
+    - Update roles as business needs change
+  </Accordion>
+  
+  <Accordion title="Role Documentation">
+    Document what each role can do:
+    
+    - List modules and actions for each role
+    - Explain why certain permissions are granted
+    - Keep role descriptions current
+    - Use documentation during onboarding
+    - Reference during permission disputes
+  </Accordion>
+  
+  <Accordion title="Secure Password Practices">
+    Enforce good password hygiene:
+    
+    - Use strong temporary passwords
+    - Force password change on first login
+    - Educate users about password security
+    - Never share passwords
+    - Use Google OAuth where appropriate
+  </Accordion>
+  
+  <Accordion title="Emergency Contact Updates">
+    Keep emergency information current:
+    
+    - Request annual updates
+    - Update when users report changes
+    - Verify phone numbers periodically
+    - Keep information confidential
+    - Ensure management can access in emergencies
+  </Accordion>
+</AccordionGroup>

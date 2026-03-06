@@ -1,0 +1,149 @@
+---
+title: 'API Overview'
+description: 'Overview of Bar Galileo REST API endpoints and architecture'
+---
+
+## Introduction
+
+Bar Galileo provides a RESTful API built with Django for managing restaurant operations, including tables, orders, products, and intelligent document-based chat using RAG (Retrieval-Augmented Generation).
+
+## Base URL
+
+All API endpoints are relative to your Bar Galileo installation:
+
+```
+https://your-domain.com/
+```
+
+## API Structure
+
+The Bar Galileo API is organized into several functional modules:
+
+### Core Modules
+
+<CardGroup cols={2}>
+  <Card title="RAG Chat" icon="message-bot" href="/api/endpoints/rag-chat">
+    Upload documents, query with AI, and manage document collections
+  </Card>
+  <Card title="Tables & Orders" icon="table">
+    Manage restaurant tables, orders, and billing
+  </Card>
+  <Card title="Products" icon="box">
+    Product catalog, categories, and inventory management
+  </Card>
+  <Card title="Authentication" icon="lock" href="/api/endpoints/authentication">
+    User authentication using Django Allauth
+  </Card>
+</CardGroup>
+
+## HTTP Methods
+
+The API uses standard HTTP methods:
+
+| Method | Description |
+|--------|-------------|
+| `GET` | Retrieve resources |
+| `POST` | Create new resources |
+| `PUT` / `PATCH` | Update existing resources |
+| `DELETE` | Remove resources |
+
+## Response Format
+
+All API responses are returned in JSON format:
+
+### Success Response
+
+```json
+{
+  "collection_id": 1,
+  "title": "User Manual",
+  "status": "indexed",
+  "chunk_count": 45,
+  "page_count": 12
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": "Description of the error"
+}
+```
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| `200` | Success |
+| `201` | Created successfully |
+| `400` | Bad request - invalid parameters |
+| `401` | Unauthorized - authentication required |
+| `403` | Forbidden - insufficient permissions |
+| `404` | Resource not found |
+| `500` | Internal server error |
+
+## Authentication
+
+Most API endpoints require authentication. Bar Galileo uses Django's session-based authentication powered by django-allauth.
+
+<Note>
+See the [Authentication](/api/endpoints/authentication) page for detailed authentication flows.
+</Note>
+
+## CSRF Protection
+
+<Warning>
+Most POST/PUT/DELETE endpoints are decorated with `@csrf_exempt` for API usage. However, for web-based forms, CSRF tokens are still required.
+</Warning>
+
+## Rate Limiting
+
+<Note>
+Currently, Bar Galileo does not implement rate limiting. Consider implementing rate limiting in production environments.
+</Note>
+
+## Content Type
+
+All POST/PUT requests should include:
+
+```http
+Content-Type: application/json
+```
+
+For file uploads (e.g., document uploads), use:
+
+```http
+Content-Type: multipart/form-data
+```
+
+## URL Namespaces
+
+Bar Galileo uses Django's URL namespacing:
+
+- `products:` - Product-related endpoints
+- `tables:` - Table and order management
+- `rag_chat:` - RAG chat and document endpoints
+- `core:` - Core application views
+- `admin_dashboard:` - Admin dashboard endpoints
+
+## External Integrations
+
+### Google Gemini API
+
+RAG chat functionality uses Google's Gemini 2.0 Flash model for generating contextual responses.
+
+<ParamField path="GOOGLE_API_KEY" type="string" required>
+  Environment variable required for AI-powered responses
+</ParamField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/api/endpoints/authentication">
+    Learn about user authentication
+  </Card>
+  <Card title="RAG Chat API" icon="robot" href="/api/endpoints/rag-chat">
+    Explore the intelligent document chat API
+  </Card>
+</CardGroup>
