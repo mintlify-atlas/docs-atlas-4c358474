@@ -1,0 +1,442 @@
+---
+title: Reports Model
+description: Report generation and storage model
+---
+
+## Overview
+
+The Reporte model manages report definitions, data storage, and file generation for the Bar Galileo reporting system.
+
+## Reporte Model
+
+Stores report configuration, metadata, and generated files.
+
+### Fields
+
+<ParamField path="nombre" type="CharField" required>
+  Report name (max 200 characters)
+</ParamField>
+
+<ParamField path="tipo" type="CharField" required>
+  Report type. Choices:
+  - `ventas` - Sales
+  - `inventario` - Inventory
+  - `gastos` - Expenses
+  - `nominas` - Payroll
+  - `productos` - Products
+  - `mesas` - Tables and Orders
+  - `general` - General
+
+  Default: `general`
+</ParamField>
+
+<ParamField path="periodo" type="CharField" required>
+  Time period. Choices:
+  - `diario` - Daily
+  - `semanal` - Weekly
+  - `mensual` - Monthly
+  - `trimestral` - Quarterly
+  - `anual` - Annual
+  - `personalizado` - Custom
+
+  Default: `mensual`
+</ParamField>
+
+<ParamField path="formato" type="CharField" required>
+  Export format. Choices:
+  - `pdf` - PDF
+  - `excel` - Excel
+  - `csv` - CSV
+
+  Default: `pdf`
+</ParamField>
+
+<ParamField path="descripcion" type="TextField">
+  Optional report description
+</ParamField>
+
+<ParamField path="creado_por" type="ForeignKey">
+  User who created the report (SET_NULL on delete)
+</ParamField>
+
+<ParamField path="fecha_creacion" type="DateTimeField">
+  When the report was created. Auto-set on creation.
+</ParamField>
+
+<ParamField path="fecha_inicio" type="DateField" required>
+  Start date for report data
+</ParamField>
+
+<ParamField path="fecha_fin" type="DateField" required>
+  End date for report data
+</ParamField>
+
+<ParamField path="archivo" type="FileField">
+  Generated file (uploaded to 'reportes/')
+</ParamField>
+
+<ParamField path="generado" type="BooleanField">
+  Whether the report has been generated. Default: `False`
+</ParamField>
+
+<ParamField path="datos_json" type="TextField">
+  Report data stored as JSON string
+</ParamField>
+
+<ParamField path="ultima_generacion" type="DateTimeField">
+  Timestamp of last generation
+</ParamField>
+
+### Meta Options
+
+```python
+class Meta:
+    ordering = ['-fecha_creacion']
+    verbose_name = 'Reporte'
+    verbose_name_plural = 'Reportes'
+    permissions = [
+        ('exportar_reporte', 'Puede exportar reportes'),
+        ('generar_reporte', 'Puede generar reportes automáticamente'),
+    ]
+```
+
+### Model Properties
+
+#### duracion_dias
+
+Returns the duration of the report period in days:
+
+```python
+@property
+def duracion_dias(self):
+    """Retorna la duración del periodo en días"""
+    if self.fecha_inicio and self.fecha_fin:
+        return (self.fecha_fin - self.fecha_inicio).days + 1
+    return 0
+```
+
+#### esta_vencido
+
+Checks if the report is outdated (more than 30 days old):
+
+```python
+@property
+def esta_vencido(self):
+    """Verifica si el reporte está desactualizado (más de 30 días)"""
+    if self.fecha_creacion:
+        return (timezone.now() - self.fecha_creacion).days > 30
+    return False
+```
+
+### Model Methods
+
+#### get_datos()
+
+Retrieve report data from JSON:
+
+```python
+def get_datos(self):
+    """Obtiene los datos del reporte desde JSON"""
+    if self.datos_json:
+        try:
+            return json.loads(self.datos_json)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+```
+
+#### set_datos(datos)
+
+Save report data as JSON:
+
+```python
+def set_datos(self, datos):
+    """Guarda los datos del reporte en JSON"""
+    self.datos_json = json.dumps(datos, ensure_ascii=False)
+    self.ultima_generacion = timezone.now()
+```
+
+## Usage Examples
+
+### Create Report Definition
+
+```python
+from reportes.models import Reporte
+from django.contrib.auth.models import User
+from datetime import date
+
+user = User.objects.get(username='admin')
+
+reporte = Reporte.objects.create(
+    nombre='Ventas Enero 2025',
+    tipo='ventas',
+    periodo='mensual',
+    formato='pdf',
+    descripcion='Reporte mensual de ventas',
+    creado_por=user,
+    fecha_inicio=date(2025, 1, 1),
+    fecha_fin=date(2025, 1, 31)
+)
+```
+
+### Generate Report with Data
+
+```python
+from reportes.models import Reporte
+from tables.models import Factura
+from django.db.models import Sum
+
+# Get report
+reporte = Reporte.objects.get(id=report_id)
+
+# Query data
+facturas = Factura.objects.filter(
+    fecha__range=[reporte.fecha_inicio, reporte.fecha_fin]
+)
+
+total = facturas.aggregate(total=Sum('total'))['total'] or 0
+
+# Store data
+datos = {
+    'total_ventas': float(total),
+    'num_facturas': facturas.count(),
+    'periodo': f"{reporte.fecha_inicio} - {reporte.fecha_fin}",
+    'facturas': [
+        {
+            'numero': f.numero,
+            'fecha': f.fecha.isoformat(),
+            'total': float(f.total)
+        }
+        for f in facturas[:100]  # Limit for JSON size
+    ]
+}
+
+reporte.set_datos(datos)
+reporte.generado = True
+reporte.save()
+```
+
+### Query Reports
+
+```python
+from reportes.models import Reporte
+
+# Get all sales reports
+ventas_reports = Reporte.objects.filter(tipo='ventas')
+
+# Get monthly reports for current user
+monthly_reports = Reporte.objects.filter(
+    creado_por=request.user,
+    periodo='mensual'
+).order_by('-fecha_creacion')
+
+# Get generated reports only
+generated = Reporte.objects.filter(
+    generado=True,
+    archivo__isnull=False
+)
+
+# Check for outdated reports
+outdated = [r for r in Reporte.objects.all() if r.esta_vencido]
+```
+
+### Retrieve Report Data
+
+```python
+reporte = Reporte.objects.get(id=report_id)
+
+# Get stored data
+datos = reporte.get_datos()
+
+if datos:
+    print(f"Total Ventas: ${datos.get('total_ventas', 0)}")
+    print(f"Número de Facturas: {datos.get('num_facturas', 0)}")
+    
+    # Access facturas list
+    for factura in datos.get('facturas', []):
+        print(f"Factura {factura['numero']}: ${factura['total']}")
+```
+
+## Report Generation Workflow
+
+### Complete Generation Example
+
+```python
+from reportes.models import Reporte
+from reportes.utils import generar_pdf_ventas, generar_excel_ventas
+from django.core.files.base import ContentFile
+import io
+
+def generar_reporte_completo(reporte_id):
+    """Generate complete report with file"""
+    reporte = Reporte.objects.get(id=reporte_id)
+    
+    # 1. Collect data
+    datos = collect_report_data(reporte)
+    reporte.set_datos(datos)
+    
+    # 2. Generate file based on format
+    if reporte.formato == 'pdf':
+        buffer = generar_pdf_ventas(datos)
+        filename = f"{reporte.nombre}.pdf"
+    elif reporte.formato == 'excel':
+        buffer = generar_excel_ventas(datos)
+        filename = f"{reporte.nombre}.xlsx"
+    else:  # csv
+        buffer = generar_csv_ventas(datos)
+        filename = f"{reporte.nombre}.csv"
+    
+    # 3. Save file
+    reporte.archivo.save(filename, ContentFile(buffer.getvalue()))
+    reporte.generado = True
+    reporte.save()
+    
+    return reporte
+
+def collect_report_data(reporte):
+    """Collect data based on report type"""
+    if reporte.tipo == 'ventas':
+        return collect_ventas_data(reporte)
+    elif reporte.tipo == 'inventario':
+        return collect_inventario_data(reporte)
+    elif reporte.tipo == 'gastos':
+        return collect_gastos_data(reporte)
+    # ... other types
+```
+
+## Report Type Specific Data
+
+### Sales Report Data
+
+```python
+def collect_ventas_data(reporte):
+    from tables.models import Factura
+    from django.db.models import Sum, Avg, Count
+    
+    facturas = Factura.objects.filter(
+        fecha__range=[reporte.fecha_inicio, reporte.fecha_fin]
+    )
+    
+    return {
+        'total_ventas': float(facturas.aggregate(Sum('total'))['total'] or 0),
+        'num_facturas': facturas.count(),
+        'promedio_venta': float(facturas.aggregate(Avg('total'))['total__avg'] or 0),
+        'ventas_por_dia': get_daily_sales(facturas),
+        'facturas': [serialize_factura(f) for f in facturas]
+    }
+```
+
+### Inventory Report Data
+
+```python
+def collect_inventario_data(reporte):
+    from products.models import Producto, Stock
+    
+    productos = Producto.objects.filter(activo=True)
+    
+    return {
+        'total_productos': productos.count(),
+        'valor_inventario': float(productos.aggregate(
+            total=Sum('precio_compra' * 'stock')
+        )['total'] or 0),
+        'productos_bajo_stock': productos.filter(stock__lt=10).count(),
+        'productos': [
+            {
+                'nombre': p.nombre,
+                'stock': p.stock,
+                'precio_venta': float(p.precio_venta),
+                'categoria': p.id_categoria.nombre_categoria if p.id_categoria else None
+            }
+            for p in productos
+        ]
+    }
+```
+
+### Expenses Report Data
+
+```python
+def collect_gastos_data(reporte):
+    from expenses.models import Expense
+    from django.db.models import Sum, Count
+    
+    gastos = Expense.objects.filter(
+        date__range=[reporte.fecha_inicio, reporte.fecha_fin]
+    )
+    
+    by_category = gastos.values('category__name').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    )
+    
+    return {
+        'total_gastos': float(gastos.aggregate(Sum('amount'))['amount__sum'] or 0),
+        'num_gastos': gastos.count(),
+        'por_categoria': [
+            {
+                'categoria': item['category__name'],
+                'total': float(item['total']),
+                'cantidad': item['count']
+            }
+            for item in by_category
+        ]
+    }
+```
+
+## Custom Permissions
+
+The Reporte model defines custom permissions:
+
+```python
+from django.contrib.auth.models import User
+
+# Check if user can export reports
+if user.has_perm('reportes.exportar_reporte'):
+    # Allow export
+    pass
+
+# Check if user can generate automatic reports
+if user.has_perm('reportes.generar_reporte'):
+    # Allow automatic generation
+    pass
+```
+
+## Scheduled Report Generation
+
+Use Django management command or Celery task:
+
+```python
+# management/commands/generar_reportes_automaticos.py
+from django.core.management.base import BaseCommand
+from reportes.models import Reporte
+from datetime import date, timedelta
+
+class Command(BaseCommand):
+    def handle(self, *args, **options):
+        # Generate monthly reports on first day of month
+        if date.today().day == 1:
+            last_month_start = date.today().replace(day=1) - timedelta(days=1)
+            last_month_start = last_month_start.replace(day=1)
+            last_month_end = date.today().replace(day=1) - timedelta(days=1)
+            
+            for tipo in ['ventas', 'gastos', 'inventario']:
+                reporte = Reporte.objects.create(
+                    nombre=f"Reporte {tipo.title()} - {last_month_start.strftime('%B %Y')}",
+                    tipo=tipo,
+                    periodo='mensual',
+                    formato='pdf',
+                    fecha_inicio=last_month_start,
+                    fecha_fin=last_month_end
+                )
+                generar_reporte_completo(reporte.id)
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Reports Feature" icon="chart-line" href="/operations/reports">
+    User guide for report generation
+  </Card>
+  <Card title="API Overview" icon="book" href="/api/endpoints/overview">
+    REST API endpoints
+  </Card>
+</CardGroup>

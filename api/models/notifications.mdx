@@ -1,0 +1,301 @@
+---
+title: Notifications Model
+description: Real-time notification system model
+---
+
+## Overview
+
+The Notificacion model stores user notifications that are delivered via WebSocket connections for real-time updates.
+
+## Notificacion Model
+
+Stores notification messages for users with read/unread status.
+
+### Fields
+
+<ParamField path="usuario" type="ForeignKey" required>
+  Reference to Django User model (CASCADE on delete). The user who receives this notification.
+</ParamField>
+
+<ParamField path="mensaje" type="TextField" required>
+  The notification message content
+</ParamField>
+
+<ParamField path="leida" type="BooleanField">
+  Whether the notification has been read. Default: `False`
+</ParamField>
+
+<ParamField path="fecha" type="DateTimeField">
+  When the notification was created. Auto-set on creation.
+</ParamField>
+
+### String Representation
+
+```python
+def __str__(self):
+    return f"{self.usuario.username} - {self.mensaje}"
+```
+
+## Usage Examples
+
+### Create Notification
+
+```python
+from notifications.models import Notificacion
+from django.contrib.auth.models import User
+
+user = User.objects.get(username='maria')
+
+# Create notification
+notificacion = Notificacion.objects.create(
+    usuario=user,
+    mensaje='Nuevo pedido asignado a mesa 5'
+)
+```
+
+### Query Notifications
+
+```python
+from notifications.models import Notificacion
+
+# Get unread notifications for user
+unread = Notificacion.objects.filter(
+    usuario=request.user,
+    leida=False
+).order_by('-fecha')
+
+# Get all notifications
+all_notifications = Notificacion.objects.filter(
+    usuario=request.user
+).order_by('-fecha')
+
+# Count unread
+unread_count = Notificacion.objects.filter(
+    usuario=request.user,
+    leida=False
+).count()
+```
+
+### Mark as Read
+
+```python
+# Mark single notification as read
+notification = Notificacion.objects.get(id=notification_id)
+notification.leida = True
+notification.save()
+
+# Mark all as read for user
+Notificacion.objects.filter(
+    usuario=request.user,
+    leida=False
+).update(leida=True)
+
+# Mark specific notifications as read
+notification_ids = [1, 2, 3]
+Notificacion.objects.filter(
+    id__in=notification_ids,
+    usuario=request.user
+).update(leida=True)
+```
+
+### Delete Old Notifications
+
+```python
+from django.utils import timezone
+from datetime import timedelta
+
+# Delete notifications older than 30 days
+thirty_days_ago = timezone.now() - timedelta(days=30)
+Notificacion.objects.filter(
+    fecha__lt=thirty_days_ago
+).delete()
+```
+
+## Helper Function
+
+The notifications app provides a helper function for sending notifications:
+
+```python notifications/utils.py
+from notifications.models import Notificacion
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
+def notificar_usuario(usuario, mensaje):
+    """
+    Send notification to user via database and WebSocket
+    
+    Args:
+        usuario: User instance
+        mensaje: Notification message string
+    """
+    # Save to database
+    notificacion = Notificacion.objects.create(
+        usuario=usuario,
+        mensaje=mensaje
+    )
+    
+    # Send via WebSocket
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'user_{usuario.id}',
+        {
+            'type': 'notificacion_mensaje',
+            'message': mensaje
+        }
+    )
+    
+    return notificacion
+```
+
+**Usage:**
+```python
+from notifications.utils import notificar_usuario
+from django.contrib.auth.models import User
+
+user = User.objects.get(username='maria')
+notificar_usuario(user, 'Tu pedido ha sido confirmado')
+```
+
+## Common Use Cases
+
+### Order Status Updates
+
+```python
+from notifications.utils import notificar_usuario
+from tables.models import Pedido
+
+pedido = Pedido.objects.get(id=pedido_id)
+
+# Notify all users associated with the order
+for user in pedido.usuarios.all():
+    notificar_usuario(
+        user,
+        f'Pedido #{pedido.id} actualizado a estado: {pedido.get_estado_display()}'
+    )
+```
+
+### Low Stock Alerts
+
+```python
+from products.models import Producto
+from notifications.utils import notificar_usuario
+from django.contrib.auth.models import User
+
+# Check for low stock
+low_stock_products = Producto.objects.filter(stock__lt=10, activo=True)
+
+if low_stock_products.exists():
+    # Notify administrators
+    admins = User.objects.filter(is_staff=True)
+    
+    for admin in admins:
+        for producto in low_stock_products:
+            notificar_usuario(
+                admin,
+                f'Alerta: Stock bajo para {producto.nombre} (quedan {producto.stock} unidades)'
+            )
+```
+
+### Expense Approval
+
+```python
+from expenses.models import Expense
+from notifications.utils import notificar_usuario
+
+expense = Expense.objects.get(id=expense_id)
+
+# Notify managers for approval
+managers = User.objects.filter(userprofile__rol__nombre='Gerente')
+
+for manager in managers:
+    notificar_usuario(
+        manager,
+        f'Nuevo gasto registrado: ${expense.amount} en {expense.category.name}'
+    )
+```
+
+## REST API Endpoints
+
+### Get Notifications
+```http
+GET /notifications/api/list/
+```
+
+Returns JSON list of user's notifications:
+```json
+{
+  "notifications": [
+    {
+      "id": 1,
+      "mensaje": "Nuevo pedido asignado",
+      "leida": false,
+      "fecha": "2025-03-06T10:30:00Z"
+    }
+  ],
+  "unread_count": 5
+}
+```
+
+### Mark as Read
+```http
+POST /notifications/api/mark-read/
+Content-Type: application/json
+
+{
+  "ids": [1, 2, 3]  // Empty array marks all as read
+}
+```
+
+## WebSocket Integration
+
+Notifications are delivered in real-time via WebSocket. See the [Notifications Documentation](/advanced/notifications) for complete WebSocket setup and frontend integration.
+
+**WebSocket URL:**
+```javascript
+ws://localhost:8000/ws/notificaciones/
+```
+
+## Database Queries Performance
+
+### Optimize Notification Queries
+
+```python
+# Use select_related for user info
+notifications = Notificacion.objects.filter(
+    leida=False
+).select_related('usuario').order_by('-fecha')
+
+# Pagination for large result sets
+from django.core.paginator import Paginator
+
+all_notifications = Notificacion.objects.filter(
+    usuario=request.user
+).order_by('-fecha')
+
+paginator = Paginator(all_notifications, 20)  # 20 per page
+page = paginator.get_page(page_number)
+```
+
+### Create Index for Performance
+
+```python
+# In notifications/models.py
+class Notificacion(models.Model):
+    # ... fields ...
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['usuario', 'leida', '-fecha']),
+        ]
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Notifications System" icon="bell" href="/advanced/notifications">
+    Complete WebSocket notification setup
+  </Card>
+  <Card title="API Overview" icon="book" href="/api/endpoints/overview">
+    REST API endpoints
+  </Card>
+</CardGroup>

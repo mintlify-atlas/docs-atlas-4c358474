@@ -74,7 +74,10 @@
               "api/models/tables",
               "api/models/invoicing",
               "api/models/employees",
-              "api/models/expenses"
+              "api/models/expenses",
+              "api/models/roles-users",
+              "api/models/notifications",
+              "api/models/reports"
             ]
           },
           {

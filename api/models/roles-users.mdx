@@ -1,0 +1,327 @@
+---
+title: Roles & Users Models
+description: Role-based access control and user profile models
+---
+
+## Overview
+
+Bar Galileo implements a comprehensive role-based access control (RBAC) system with user profiles and emergency contact information. This system allows fine-grained permission management through Module-Action-Role relationships.
+
+## Role Management Models
+
+### Role
+
+Main role definition model.
+
+<ParamField path="nombre" type="CharField" required>
+  Role name (max 50 characters, unique)
+</ParamField>
+
+<ParamField path="descripcion" type="TextField">
+  Optional role description
+</ParamField>
+
+**Example:**
+```python
+from roles.models import Role
+
+# Create a role
+role = Role.objects.create(
+    nombre='Mesero',
+    descripcion='Personal de servicio de mesas'
+)
+```
+
+### Module
+
+System modules that can have permissions.
+
+<ParamField path="nombre" type="CharField" required>
+  Module name (max 50 characters, unique). Examples: "Products", "Orders", "Reports"
+</ParamField>
+
+**Example:**
+```python
+from roles.models import Module
+
+# Create modules
+productos = Module.objects.create(nombre='Productos')
+pedidos = Module.objects.create(nombre='Pedidos')
+reportes = Module.objects.create(nombre='Reportes')
+```
+
+### Action
+
+Actions that can be performed on modules.
+
+<ParamField path="nombre" type="CharField" required>
+  Action name (max 50 characters, unique). Examples: "View", "Create", "Edit", "Delete"
+</ParamField>
+
+**Example:**
+```python
+from roles.models import Action
+
+# Create actions
+ver = Action.objects.create(nombre='Ver')
+crear = Action.objects.create(nombre='Crear')
+editar = Action.objects.create(nombre='Editar')
+eliminar = Action.objects.create(nombre='Eliminar')
+```
+
+### RolePermission
+
+Links roles to specific module-action combinations.
+
+<ParamField path="rol" type="ForeignKey" required>
+  Reference to Role model (CASCADE on delete)
+</ParamField>
+
+<ParamField path="modulo" type="ForeignKey" required>
+  Reference to Module model (CASCADE on delete)
+</ParamField>
+
+<ParamField path="accion" type="ForeignKey" required>
+  Reference to Action model (CASCADE on delete)
+</ParamField>
+
+**Constraints:**
+- `unique_together`: ('rol', 'modulo', 'accion')
+
+**Example:**
+```python
+from roles.models import RolePermission, Role, Module, Action
+
+# Get objects
+mesero = Role.objects.get(nombre='Mesero')
+pedidos = Module.objects.get(nombre='Pedidos')
+ver = Action.objects.get(nombre='Ver')
+crear = Action.objects.get(nombre='Crear')
+
+# Grant permissions
+RolePermission.objects.create(rol=mesero, modulo=pedidos, accion=ver)
+RolePermission.objects.create(rol=mesero, modulo=pedidos, accion=crear)
+```
+
+### UserProfile
+
+Connects Django users to roles in the RBAC system.
+
+<ParamField path="user" type="OneToOneField" required>
+  Reference to Django User model (CASCADE on delete)
+</ParamField>
+
+<ParamField path="rol" type="ForeignKey">
+  Reference to Role model (SET_NULL on delete). Nullable for users without assigned roles.
+</ParamField>
+
+**Example:**
+```python
+from django.contrib.auth.models import User
+from roles.models import UserProfile, Role
+
+# Assign role to user
+user = User.objects.get(username='juan')
+mesero_role = Role.objects.get(nombre='Mesero')
+
+profile, created = UserProfile.objects.get_or_create(user=user)
+profile.rol = mesero_role
+profile.save()
+
+# Check user's role
+if hasattr(user, 'userprofile') and user.userprofile.rol:
+    print(f"Role: {user.userprofile.rol.nombre}")
+```
+
+## User Profile Models
+
+### PerfilUsuario
+
+Extended user profile with personal information.
+
+<ParamField path="user" type="OneToOneField" required>
+  Reference to Django User model (CASCADE on delete)
+</ParamField>
+
+<ParamField path="nombre" type="CharField">
+  Full name (max 100 characters)
+</ParamField>
+
+<ParamField path="cedula" type="CharField">
+  ID card number (max 20 characters)
+</ParamField>
+
+<ParamField path="telefono" type="CharField">
+  Phone number (max 20 characters)
+</ParamField>
+
+<ParamField path="direccion" type="CharField">
+  Address (max 200 characters)
+</ParamField>
+
+<ParamField path="avatar" type="ImageField">
+  Profile picture (uploaded to 'img/avatar/')
+</ParamField>
+
+**Example:**
+```python
+from users.models import PerfilUsuario
+from django.contrib.auth.models import User
+
+user = User.objects.get(username='maria')
+
+perfil = PerfilUsuario.objects.create(
+    user=user,
+    nombre='María García',
+    cedula='1234567890',
+    telefono='+573001234567',
+    direccion='Calle 10 #20-30, Sogamoso'
+)
+```
+
+### Emergencia
+
+Emergency contact information linked to user profiles.
+
+<ParamField path="perfil" type="OneToOneField" required>
+  Reference to PerfilUsuario model (CASCADE on delete)
+</ParamField>
+
+<ParamField path="nombre" type="CharField">
+  Emergency contact name (max 100 characters)
+</ParamField>
+
+<ParamField path="relacion" type="CharField">
+  Relationship to user (max 50 characters)
+</ParamField>
+
+<ParamField path="telefono" type="CharField">
+  Primary phone (max 20 characters)
+</ParamField>
+
+<ParamField path="telefono_alt" type="CharField">
+  Alternative phone (max 20 characters)
+</ParamField>
+
+<ParamField path="sangre" type="CharField">
+  Blood type (max 10 characters)
+</ParamField>
+
+<ParamField path="alergias" type="CharField">
+  Known allergies (max 200 characters)
+</ParamField>
+
+**Example:**
+```python
+from users.models import Emergencia, PerfilUsuario
+
+perfil = PerfilUsuario.objects.get(user__username='maria')
+
+emergencia = Emergencia.objects.create(
+    perfil=perfil,
+    nombre='Carlos García',
+    relacion='Esposo',
+    telefono='+573009876543',
+    telefono_alt='+576087654321',
+    sangre='O+',
+    alergias='Penicilina'
+)
+```
+
+## Permission Checking
+
+Check if a user has permission to perform an action on a module:
+
+```python
+from roles.models import RolePermission
+
+def user_has_permission(user, module_name, action_name):
+    """Check if user has permission for module-action combination"""
+    if not hasattr(user, 'userprofile') or not user.userprofile.rol:
+        return False
+    
+    return RolePermission.objects.filter(
+        rol=user.userprofile.rol,
+        modulo__nombre=module_name,
+        accion__nombre=action_name
+    ).exists()
+
+# Usage
+if user_has_permission(user, 'Productos', 'Editar'):
+    # Allow product editing
+    pass
+```
+
+## Common Workflows
+
+### Create Complete RBAC Setup
+
+```python
+from roles.models import Role, Module, Action, RolePermission
+
+# Create modules
+modules = {
+    'productos': Module.objects.create(nombre='Productos'),
+    'pedidos': Module.objects.create(nombre='Pedidos'),
+    'facturacion': Module.objects.create(nombre='Facturación'),
+    'reportes': Module.objects.create(nombre='Reportes'),
+}
+
+# Create actions
+actions = {
+    'ver': Action.objects.create(nombre='Ver'),
+    'crear': Action.objects.create(nombre='Crear'),
+    'editar': Action.objects.create(nombre='Editar'),
+    'eliminar': Action.objects.create(nombre='Eliminar'),
+}
+
+# Create Administrator role with all permissions
+admin = Role.objects.create(
+    nombre='Administrador',
+    descripcion='Acceso completo al sistema'
+)
+
+for module in modules.values():
+    for action in actions.values():
+        RolePermission.objects.create(
+            rol=admin,
+            modulo=module,
+            accion=action
+        )
+
+# Create Server role with limited permissions
+mesero = Role.objects.create(
+    nombre='Mesero',
+    descripcion='Personal de servicio'
+)
+
+# Servers can view/create orders
+RolePermission.objects.create(rol=mesero, modulo=modules['pedidos'], accion=actions['ver'])
+RolePermission.objects.create(rol=mesero, modulo=modules['pedidos'], accion=actions['crear'])
+
+# Servers can view products
+RolePermission.objects.create(rol=mesero, modulo=modules['productos'], accion=actions['ver'])
+```
+
+### Get All Permissions for a Role
+
+```python
+from roles.models import RolePermission
+
+role = Role.objects.get(nombre='Mesero')
+permissions = RolePermission.objects.filter(rol=role).select_related('modulo', 'accion')
+
+for perm in permissions:
+    print(f"{perm.modulo.nombre} - {perm.accion.nombre}")
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Users & Roles Feature" icon="users" href="/features/users-roles">
+    User-facing documentation for role management
+  </Card>
+  <Card title="Authentication" icon="lock" href="/api/endpoints/authentication">
+    Authentication and login endpoints
+  </Card>
+</CardGroup>
