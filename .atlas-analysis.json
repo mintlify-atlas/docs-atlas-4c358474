@@ -1,0 +1,119 @@
+{
+  "projectType": "saas",
+  "projectName": "Bar Galileo",
+  "projectDescription": "Sistema de gestión integral para bar/restaurante con manejo de mesas, pedidos, inventario, facturación, nóminas, gastos y reportes.",
+  "theme": "linden",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/tables-orders",
+              "features/products-inventory",
+              "features/invoicing",
+              "features/users-roles"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/expenses",
+              "operations/payroll",
+              "operations/reports",
+              "operations/backups"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/notifications",
+              "advanced/rag-chat",
+              "advanced/integrations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/products",
+              "api/models/tables",
+              "api/models/invoicing",
+              "api/models/employees",
+              "api/models/expenses"
+            ]
+          },
+          {
+            "group": "Views & Endpoints",
+            "pages": [
+              "api/endpoints/overview",
+              "api/endpoints/authentication",
+              "api/endpoints/rag-chat"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "api/configuration/settings",
+              "api/configuration/environment"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Table and order management with real-time status tracking",
+    "Complete product inventory with categories, brands, and suppliers",
+    "Automated invoice generation and billing",
+    "Role-based access control with custom permissions",
+    "Employee management with payroll and bonuses",
+    "Expense tracking and categorization",
+    "PDF and Excel report generation",
+    "Automated database backups with GPG encryption",
+    "Real-time WebSocket notifications",
+    "AI-powered RAG chat assistant for document queries"
+  ],
+  "publicApiSurface": [
+    "Mesa - Table management model",
+    "Pedido - Order tracking model",
+    "PedidoItem - Order line items",
+    "Factura - Invoice model",
+    "Producto - Product catalog model",
+    "Categoria - Product categories",
+    "Marca - Product brands",
+    "Proveedor - Suppliers",
+    "Stock - Inventory tracking",
+    "Empleado - Employee records",
+    "Pago - Payment processing",
+    "Bonificacion - Employee bonuses",
+    "Expense - Expense tracking",
+    "ExpenseCategory - Expense categories",
+    "DocumentCollection - RAG document storage",
+    "DocumentChunk - RAG text chunks",
+    "RAGQuery - RAG query history",
+    "/api/rag/upload - Upload documents for RAG",
+    "/api/rag/query - Query RAG system",
+    "/api/rag/documents - List indexed documents",
+    "/accounts/login/ - User authentication",
+    "/dashboard/ - Admin dashboard",
+    "/reportes/ - Report generation"
+  ]
+}
